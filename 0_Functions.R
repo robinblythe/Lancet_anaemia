@@ -1,5 +1,23 @@
-#Functions 1, 2: Obtain prevalence estimates for women of reproductive age and total population
+#Functions 1, 2, 3: Obtain prevalence estimates for anaemic women of reproductive age, all women of reproductive age, and total population
 
+#Anaemia estimates for women of reproductive age
+obtain_anaemic <- function(data, country, agegroup){
+  subset(data, 
+         sex == "Female" &
+           age_group_id %in% agegroup &
+           year_id == 2021 &
+           measure == "prevalence" &
+           metric_name == "Number" &
+           location_name %in% country) |>
+  group_by(rei_name, metric_name, location_name) |>
+  summarise(EV_prev = round(sum(val[metric_name == "Number"]), digits = 0),
+            min_prev = round(sum(lower[metric_name == "Number"]), digits = 0),
+            max_prev = round(sum(upper[metric_name == "Number"]), digits = 0)) |>
+  ungroup() |>
+  select(-"metric_name")
+}
+
+#All women of reproductive age
 obtain_wra <- function(data, country, agegroup){
   subset(data,
          sex == "Female" &
@@ -21,6 +39,7 @@ obtain_wra <- function(data, country, agegroup){
     relocate(rei_name)
 }
 
+#Total population
 obtain_tot <- function(data, country){
   subset(data,
          rei_name == "Mild anemia" &

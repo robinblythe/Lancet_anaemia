@@ -19,44 +19,20 @@ remove(df_mild, df_moderate, df_severe, import)
 # Age group IDs: 8 to 14
 agegroup <- seq(8, 14, 1)
 
-# Subset by female, reproductive age, 2021 only, Malawi and Armenia
-df_anaemic <- subset(df, sex == "Female" &
-                       age_group_id %in% agegroup &
-                       year_id == 2021 &
-                       measure == "prevalence" &
-                       metric_name == "Number"&
-                       location_name %in% c("Malawi", "Armenia")) |>
-  group_by(rei_name, metric_name, location_name) |>
-  summarise(EV_prev = round(sum(val[metric_name == "Number"]), digits = 0),
-            min_prev = round(sum(lower[metric_name == "Number"]), digits = 0),
-            max_prev = round(sum(upper[metric_name == "Number"]), digits = 0)) |>
-  ungroup() |>
-  select(-"metric_name")
+#Use custom functions with Armenia, Malawi
+#To apply to entire dataset, use country = unique(df$location_name)
+df_prev <- rbind(obtain_anaemic(data = df, country = c("Armenia", "Malawi"), agegroup = agegroup),
+                 obtain_wra(data = df, country = c("Armenia", "Malawi"), agegroup = agegroup),
+                 obtain_tot(data = df, country = c("Armenia", "Malawi")))
 
-df_pop <- rbind(df_anaemic,
-                obtain_wra(data = df, country = c("Armenia", "Malawi"), agegroup = agegroup),
-                obtain_tot(data = df, country = c("Armenia", "Malawi")))
+#Next step: obtain estimates of pregnant populations, both anaemic and otherwise
 
 
-
-
-
-
-#Create distributions of mild/moderate/severe population - Malawi, aggregated by age
+#Distribution functions, roughly:
 trials = 100000
-malawi_prev_mild <- with(subset(df_malawi, rei_name == "Mild anemia"), 
-                         rtri(n = trials, min = min_prev, max = max_prev, mode = EV_prev))
-malawi_prev_moderate <- with(subset(df_malawi, rei_name == "Moderate anemia"), 
-                             rtri(n = trials, min = min_prev, max = max_prev, mode = EV_prev))
-malawi_prev_severe <- with(subset(df_malawi, rei_name == "Severe anemia"), 
-                           rtri(n = trials, min = min_prev, max = max_prev, mode = EV_prev))
-
-#Estimate distributions of total number of women of reproductive age in Malawi
+#min = min_prev, max = max_prev, mode = EV_prev
 
 
-#Estimate pregnant population - using rates or raw numbers?
-
-#Estimate total population of Malawi
 
 
 #Interventions: costs per case, effectiveness (RR of being 'cured')
