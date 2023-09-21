@@ -3,6 +3,7 @@ options(scipen = 999, digits = 5)
 
 library(tidyverse)
 library(EnvStats)
+library(countrycode)
 
 source("./0_Functions.R")
 
@@ -11,9 +12,21 @@ import <- "C:/Users/blythe/OneDrive - Queensland University of Technology/WHO an
 df_mild <- read.csv(paste0(import, "mild_anemia_prev_data.csv"))
 df_moderate <- read.csv(paste0(import, "moderate_anemia_prev_data.csv"))
 df_severe <- read.csv(paste0(import, "severe_anemia_prev_data.csv"))
-
 df <- do.call(rbind, list(df_mild, df_moderate, df_severe))
+
+fert <- read.csv(paste0(import, "fertility_rates.csv"))
+
+#Standardise country names and use 2021 fertility data
+fert$Country.Name <- countryname(fert$Country.Name)
+fert <- fert |> select("Country.Name", "X2021") |> na.omit()
+colnames(fert) <- c("location_name", "Fertility_Rate_2021")
+
+df$location_name <- countryname(df$location_name)
+
+df <- left_join(df, fert)
+
 remove(df_mild, df_moderate, df_severe, import)
+
 
 # Anaemia target population: women of reproductive age (15-49)
 # Age group IDs: 8 to 14
@@ -25,7 +38,8 @@ df_prev <- rbind(obtain_anaemic(data = df, country = c("Armenia", "Malawi"), age
                  obtain_wra(data = df, country = c("Armenia", "Malawi"), agegroup = agegroup),
                  obtain_tot(data = df, country = c("Armenia", "Malawi")))
 
-#Next step: obtain estimates of pregnant populations, both anaemic and otherwise
+#Pregnant populations: Fertility rates
+
 
 
 #Distribution functions, roughly:
