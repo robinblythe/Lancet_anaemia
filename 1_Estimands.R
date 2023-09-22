@@ -38,9 +38,12 @@ df_prev <- rbind(obtain_anaemic(data = df, country = c("Armenia", "Malawi"), age
                  obtain_wra(data = df, country = c("Armenia", "Malawi"), agegroup = agegroup),
                  obtain_tot(data = df, country = c("Armenia", "Malawi")))
 
+
 #Pregnant populations: Fertility rates
+#Probability pregnant = 49 - 15 = 34 years, n births per woman, 0.75 years pregnant
 
-
+#Interventions - multiply whole population by dist of mean and 95% interval - use the standard errors because it's the whole population
+#Not simulating individuals, so use population * sample(effectiveness mean, effectiveness SE)
 
 #Distribution functions, roughly:
 trials = 100000
