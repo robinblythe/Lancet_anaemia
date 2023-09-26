@@ -74,4 +74,4 @@ df_final <- rbind(df_prev, df_preg) |>
   arrange(location_name)
 
 df <- df_final
-remove(df_preg, df_prev, df_final, pregnancy, agegroup, import, obtain_anaemic, obtain_tot, obtain_wra,)
+remove(df_preg, df_prev, df_final, pregnancy, agegroup, import, obtain_anaemic, obtain_tot, obtain_wra)

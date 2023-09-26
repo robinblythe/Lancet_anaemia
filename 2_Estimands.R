@@ -5,6 +5,7 @@ library(tidyverse)
 library(countrycode)
 library(EnvStats)
 
+#Obtain population estimates
 source("./1_Load_and_wrangle.R")
 
 
