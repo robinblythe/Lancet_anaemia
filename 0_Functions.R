@@ -1,4 +1,5 @@
 #Functions 1, 2, 3: Obtain prevalence estimates for anaemic women of reproductive age, all women of reproductive age, and total population
+library(tidyverse)
 
 #Anaemia estimates for women of reproductive age
 obtain_anaemic <- function(data, country, agegroup){
