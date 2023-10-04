@@ -59,3 +59,4 @@ obtain_tot <- function(data, country){
 }
 
 
+#Sampler function for effectiveness

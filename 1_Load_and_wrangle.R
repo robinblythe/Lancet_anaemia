@@ -50,28 +50,50 @@ pregnancy <- inner_join(fert, still) |>
 
 remove(fert, still)
 
+preg1 <- pregnancy[,1] |> mutate(year_id = 2025) |> distinct()
+
+pregnancy <- full_join(pregnancy, preg1) |> arrange(location_name, year_id)
+remove(preg1)
+
+#Extrapolate from 2015 to 2025 using loess smoothing
+# countries <- unique(pregnancy$location_name)
+# 
+# for (i in 1:length(countries)){
+#   lm <- with(subset(pregnancy, location_name == countries[i] & year_id >= 2015),
+#              lm(Pr_preg_med ~ year_id), na.action = na.exclude())
+#   # pregnancy$Pr_preg_med[pregnancy$year_id == 2025 & pregnancy$location_name == countries[i]] <- predict(
+#   #   lo, newdata = with(subset(pregnancy, location_name == countries[i] & year_id >= 2015)))
+# }
+
 # Anaemia target population: women of reproductive age (15-49)
 # Age group IDs: 8 to 14
 agegroup <- seq(8, 14, 1)
 
 #Use custom functions with Armenia, Malawi
 #To apply to entire dataset, use country = unique(df$location_name)
-df_prev <- rbind(obtain_anaemic(data = df, country = c("Armenia", "Malawi"), agegroup = agegroup),
-                 obtain_wra(data = df, country = c("Armenia", "Malawi"), agegroup = agegroup))
+names <- c("Country", "Population", "Year", "EV", "EV_lower", "EV_upper", "EV_pregnant", "EV_pregnant_lower", "EV_pregnant_upper")
 
-#Pregnant women = women of reproductive age * probability pregnant at a given time
-
-df_preg <- inner_join(obtain_wra(data = df, country = c("Armenia", "Malawi"), agegroup = agegroup),
-                      pregnancy) |>
-  mutate(rei_name = "Pregnant women",
-         EV_prev = EV_prev * Pr_preg_med,
-         min_prev = min_prev * Pr_preg_low,
-         max_prev = max_prev * Pr_preg_high) |>
-  select("location_name", "rei_name", "year_id", "EV_prev", "min_prev", "max_prev") |>
-  ungroup()
-
-df_final <- rbind(df_prev, df_preg) |>
+df_anaemic <- inner_join(obtain_anaemic(data = df, country = c("Armenia", "Malawi"), agegroup = agegroup), pregnancy) |>
+  filter(year_id >= 2000) |>
+  mutate(Preg_EV_prev = round(EV_prev * Pr_preg_med, 0),
+         Preg_min_prev = round(min_prev * Pr_preg_low, 0),
+         Preg_max_prev = round(max_prev * Pr_preg_high, 0)) |>
+  select(-c(Pr_preg_med, Pr_preg_low, Pr_preg_high)) |>
   arrange(location_name)
 
-df <- df_final
-remove(df_preg, df_prev, df_final, pregnancy, agegroup, import, obtain_anaemic, obtain_tot, obtain_wra)
+colnames(df_anaemic) <- names
+
+
+df_wra <- inner_join(obtain_wra(data = df, country = c("Armenia", "Malawi"), agegroup = agegroup), pregnancy) |>
+  filter(year_id >= 2000) |>
+  arrange(location_name)
+
+colnames(df_wra) <- names
+
+
+df_pop <- obtain_tot(data = df, country = c("Armenia", "Malawi")) |>
+  filter(year_id >= 2000)
+
+colnames(df_pop) <- names[1:6]
+
+remove(df, pregnancy, agegroup, import, names, obtain_anaemic, obtain_tot, obtain_wra)
