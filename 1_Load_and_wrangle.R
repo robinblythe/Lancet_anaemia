@@ -50,20 +50,10 @@ pregnancy <- inner_join(fert, still) |>
 
 remove(fert, still)
 
-preg1 <- pregnancy[,1] |> mutate(year_id = 2025) |> distinct()
+preg1 <- pregnancy[,1] |> mutate(year_id = pred_year) |> distinct()
 
 pregnancy <- full_join(pregnancy, preg1) |> arrange(location_name, year_id)
 remove(preg1)
-
-#Extrapolate from 2015 to 2025 using loess smoothing
-# countries <- unique(pregnancy$location_name)
-# 
-# for (i in 1:length(countries)){
-#   lm <- with(subset(pregnancy, location_name == countries[i] & year_id >= 2015),
-#              lm(Pr_preg_med ~ year_id), na.action = na.exclude())
-#   # pregnancy$Pr_preg_med[pregnancy$year_id == 2025 & pregnancy$location_name == countries[i]] <- predict(
-#   #   lo, newdata = with(subset(pregnancy, location_name == countries[i] & year_id >= 2015)))
-# }
 
 # Anaemia target population: women of reproductive age (15-49)
 # Age group IDs: 8 to 14
@@ -73,7 +63,7 @@ agegroup <- seq(8, 14, 1)
 #To apply to entire dataset, use country = unique(df$location_name)
 names <- c("Country", "Population", "Year", "EV", "EV_lower", "EV_upper", "EV_pregnant", "EV_pregnant_lower", "EV_pregnant_upper")
 
-df_anaemic <- inner_join(obtain_anaemic(data = df, country = c("Armenia", "Malawi"), agegroup = agegroup), pregnancy) |>
+df_anaemic <- inner_join(obtain_anaemic(data = df, country = Country, agegroup = agegroup), pregnancy) |>
   filter(year_id >= 2000) |>
   mutate(Preg_EV_prev = round(EV_prev * Pr_preg_med, 0),
          Preg_min_prev = round(min_prev * Pr_preg_low, 0),
@@ -84,16 +74,32 @@ df_anaemic <- inner_join(obtain_anaemic(data = df, country = c("Armenia", "Malaw
 colnames(df_anaemic) <- names
 
 
-df_wra <- inner_join(obtain_wra(data = df, country = c("Armenia", "Malawi"), agegroup = agegroup), pregnancy) |>
+df_wra <- inner_join(obtain_wra(data = df, country = Country, agegroup = agegroup), pregnancy) |>
   filter(year_id >= 2000) |>
+  mutate(Preg_EV_prev = round(EV_prev * Pr_preg_med, 0),
+         Preg_min_prev = round(min_prev * Pr_preg_low, 0),
+         Preg_max_prev = round(max_prev * Pr_preg_high, 0)) |>  
+  select(-c(Pr_preg_med, Pr_preg_low, Pr_preg_high)) |>
   arrange(location_name)
 
 colnames(df_wra) <- names
 
 
-df_pop <- obtain_tot(data = df, country = c("Armenia", "Malawi")) |>
+df_pop <- obtain_tot(data = df, country = Country) |>
   filter(year_id >= 2000)
 
 colnames(df_pop) <- names[1:6]
 
 remove(df, pregnancy, agegroup, import, names, obtain_anaemic, obtain_tot, obtain_wra)
+
+#Extrapolate to 2025 from 2015 using linear model
+est2025 <- predict.anemia(df_anaemic, year.start = 2015, predict.year = 2025, country = unique(df_anaemic$Country))
+df_anaemic <- full_join(df_anaemic, est2025) |> arrange(Country, Population, Year)
+
+est2025 <- predict.wra(df_wra, year.start = 2015, predict.year = 2025, country = unique(df_wra$Country))
+df_wra <- full_join(df_wra, est2025) |> arrange(Country, Population, Year)
+
+est2025 <- predict.tot(df_pop, year.start = 2015, predict.year = 2025, country = unique(df_pop$Country))
+df_pop <- full_join(df_pop, est2025) |> arrange(Country, Population, Year)
+
+remove(est2025, predict.anemia, predict.tot, predict.wra)
