@@ -43,10 +43,10 @@ pregnancy <- inner_join(fert, still) |>
   mutate(still_mid = Median/1000 * Fertility_Rate,
          still_low = Lower/1000 * Fertility_Rate,
          still_high = Upper/1000 * Fertility_Rate) |>
-  mutate(Pr_preg_low = ((Fertility_Rate * 0.75) + (still_low * 0.55))/34,
-         Pr_preg_med = ((Fertility_Rate * 0.75) + (still_mid * 0.65))/34,
+  mutate(Pr_preg_med = ((Fertility_Rate * 0.75) + (still_mid * 0.65))/34,
+         Pr_preg_low = ((Fertility_Rate * 0.75) + (still_low * 0.55))/34,
          Pr_preg_high = ((Fertility_Rate * 0.75) + (still_high * 0.75))/34) |>
-  select("location_name", "year_id", "Pr_preg_low", "Pr_preg_med", "Pr_preg_high")
+  select("location_name", "year_id", "Pr_preg_med", "Pr_preg_low", "Pr_preg_high")
 
 remove(fert, still)
 
@@ -61,25 +61,18 @@ agegroup <- seq(8, 14, 1)
 
 #Use custom functions with Armenia, Malawi
 #To apply to entire dataset, use country = unique(df$location_name)
-names <- c("Country", "Population", "Year", "EV", "EV_lower", "EV_upper", "EV_pregnant", "EV_pregnant_lower", "EV_pregnant_upper")
+names <- c("Country", "Population", "Year", "EV", "EV_lower", "EV_upper", 
+           "Pr_pregnant", "Pr_pregnant_lower", "Pr_pregnant_upper")
 
 df_anaemic <- inner_join(obtain_anaemic(data = df, country = Country, agegroup = agegroup), pregnancy) |>
   filter(year_id >= 2000) |>
-  mutate(Preg_EV_prev = round(EV_prev * Pr_preg_med, 0),
-         Preg_min_prev = round(min_prev * Pr_preg_low, 0),
-         Preg_max_prev = round(max_prev * Pr_preg_high, 0)) |>
-  select(-c(Pr_preg_med, Pr_preg_low, Pr_preg_high)) |>
   arrange(location_name)
 
 colnames(df_anaemic) <- names
 
 
 df_wra <- inner_join(obtain_wra(data = df, country = Country, agegroup = agegroup), pregnancy) |>
-  filter(year_id >= 2000) |>
-  mutate(Preg_EV_prev = round(EV_prev * Pr_preg_med, 0),
-         Preg_min_prev = round(min_prev * Pr_preg_low, 0),
-         Preg_max_prev = round(max_prev * Pr_preg_high, 0)) |>  
-  select(-c(Pr_preg_med, Pr_preg_low, Pr_preg_high)) |>
+  filter(year_id >= 2000) |>  
   arrange(location_name)
 
 colnames(df_wra) <- names
@@ -92,14 +85,14 @@ colnames(df_pop) <- names[1:6]
 
 remove(df, pregnancy, agegroup, import, names, obtain_anaemic, obtain_tot, obtain_wra)
 
-#Extrapolate to 2025 from 2015 using linear model
-est2025 <- predict.anemia(df_anaemic, year.start = 2015, predict.year = 2025, country = unique(df_anaemic$Country))
-df_anaemic <- full_join(df_anaemic, est2025) |> arrange(Country, Population, Year)
+#Extrapolate to pred_year from 2015 using linear model
+est <- predict.anemia(df_anaemic, year.start = 2015, predict.year = pred_year, country = unique(df_anaemic$Country))
+df_anaemic <- full_join(df_anaemic, est) |> arrange(Country, Population, Year)
 
-est2025 <- predict.wra(df_wra, year.start = 2015, predict.year = 2025, country = unique(df_wra$Country))
-df_wra <- full_join(df_wra, est2025) |> arrange(Country, Population, Year)
+est <- predict.wra(df_wra, year.start = 2015, predict.year = pred_year, country = unique(df_wra$Country))
+df_wra <- full_join(df_wra, est) |> arrange(Country, Population, Year)
 
-est2025 <- predict.tot(df_pop, year.start = 2015, predict.year = 2025, country = unique(df_pop$Country))
-df_pop <- full_join(df_pop, est2025) |> arrange(Country, Population, Year)
+est <- predict.tot(df_pop, year.start = 2015, predict.year = pred_year, country = unique(df_pop$Country))
+df_pop <- full_join(df_pop, est) |> arrange(Country, Population, Year)
 
-remove(est2025, predict.anemia, predict.tot, predict.wra)
+remove(est, predict.anemia, predict.tot, predict.wra)
