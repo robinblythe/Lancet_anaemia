@@ -76,12 +76,6 @@ malawi$severe_anaemia <- with(
   )
 )
 
-malawi$mild_anemia_pregnant <- malawi$mild_anaemia * malawi$Pr_pregnant
-
-malawi$moderate_anemia_pregnant <- malawi$moderate_anaemia * malawi$Pr_pregnant
-
-malawi$severe_anemia_pregnant <- malawi$severe_anaemia * malawi$Pr_pregnant
-
 malawi$mild_post_supp <- with(
   malawi,
   mild_anaemia * (1 - (1 - staple_eff_per) * staple_coverage)
@@ -97,9 +91,53 @@ malawi$severe_post_supp <- with(
   severe_anaemia * (1 - (1 - staple_eff_per) * staple_coverage)
 )
 
+malawi$mild_post_supp_chemoprev <- malawi$mild_post_supp - (malawi$Pr_pregnant * malawi$mild_post_supp * (1 - malarials_eff_per) * malarials_coverage)
+
+malawi$moderate_post_supp_chemoprev <- malawi$moderate_post_supp - (malawi$Pr_pregnant * malawi$moderate_post_supp * (1 - malarials_eff_per) * malarials_coverage)
+
+malawi$severe_post_supp_chemoprev <- malawi$severe_post_supp - (malawi$Pr_pregnant * malawi$severe_post_supp * (1 - malarials_eff_per) * malarials_coverage)
 
 
 
+#Graphics: the density plots of number of anaemia cases on x axis, countries as facets, y axis is mild-moderate-severe
+df1 <- df_anaemic |>
+  select(Country, Population, Year, EV, EV_lower, EV_upper)
+
+df2 <- data.frame(
+  Country = "Malawi",
+  Population = c("Mild anemia (forecasted)", "Moderate anemia (forecasted)", "Severe anemia (forecasted"),
+  Year = 2030,
+  EV = c(mean(malawi$mild_post_supp_chemoprev), mean(malawi$moderate_post_supp_chemoprev), mean(malawi$severe_post_supp_chemoprev)),
+  EV_lower = c(quantile(malawi$mild_post_supp_chemoprev, 0.025), 
+               quantile(malawi$moderate_post_supp_chemoprev, 0.025), 
+               quantile(malawi$severe_post_supp_chemoprev, 0.025)),
+  EV_upper = c(quantile(malawi$mild_post_supp_chemoprev, 0.975), 
+               quantile(malawi$moderate_post_supp_chemoprev, 0.975), 
+               quantile(malawi$severe_post_supp_chemoprev, 0.975))
+)
+
+
+df <- full_join(
+  df_anaemic |>
+    select(Country, Population, Year, EV, EV_lower, EV_upper),
+  
+  data.frame(
+    Country = "Malawi",
+    Population = c("Mild anemia (forecasted)", "Moderate anemia (forecasted)", "Severe anemia (forecasted"),
+    Year = 2030,
+    EV = c(mean(malawi$mild_post_supp_chemoprev), mean(malawi$moderate_post_supp_chemoprev), mean(malawi$severe_post_supp_chemoprev)),
+    EV_lower = c(quantile(malawi$mild_post_supp_chemoprev, 0.025), 
+                 quantile(malawi$moderate_post_supp_chemoprev, 0.025), 
+                 quantile(malawi$severe_post_supp_chemoprev, 0.025)),
+    EV_upper = c(quantile(malawi$mild_post_supp_chemoprev, 0.975), 
+                 quantile(malawi$moderate_post_supp_chemoprev, 0.975), 
+                 quantile(malawi$severe_post_supp_chemoprev, 0.975))
+  )
+) |>
+  arrange()
+
+
+#Remember to multiply cases by burden at the end?
 
 
 
