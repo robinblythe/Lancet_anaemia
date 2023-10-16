@@ -79,49 +79,49 @@ predict.anemia <- function(data, year.start, predict.year, country){
   
     for (i in 1:length(country)){
       #EV, not pregnant
-      model_mild_med <- lm(EV ~ Year, data = subset(df, Country == country[i] & Population == "Mild anemia"))
-      model_moderate_med <- lm(EV ~ Year, data = subset(df, Country == country[i] & Population == "Moderate anemia"))
-      model_severe_med <- lm(EV ~ Year, data = subset(df, Country == country[i] & Population == "Severe anemia"))
+      model_mild_med <- lm(EV ~ Year, data = subset(df, Country == country[i] & Population == "Mild anemia"), na.action = na.omit)
+      model_moderate_med <- lm(EV ~ Year, data = subset(df, Country == country[i] & Population == "Moderate anemia"), na.action = na.omit)
+      model_severe_med <- lm(EV ~ Year, data = subset(df, Country == country[i] & Population == "Severe anemia"), na.action = na.omit)
       preds$EV[preds$Country == country[i] & preds$Population == "Mild anemia"] <- max(predict(model_mild_med, newdata = data.frame(Year = predict.year)), 0)
       preds$EV[preds$Country == country[i] & preds$Population == "Moderate anemia"] <- max(predict(model_moderate_med, newdata = data.frame(Year = predict.year)), 0)
       preds$EV[preds$Country == country[i] & preds$Population == "Severe anemia"] <- max(predict(model_severe_med, newdata = data.frame(Year = predict.year)), 0)
       
       #EV lower, not pregnant
-      model_mild_min <- lm(EV_lower ~ Year, data = subset(df, Country == country[i] & Population == "Mild anemia"))
-      model_moderate_min <- lm(EV_lower ~ Year, data = subset(df, Country == country[i] & Population == "Moderate anemia"))
-      model_severe_min <- lm(EV_lower ~ Year, data = subset(df, Country == country[i] & Population == "Severe anemia"))
+      model_mild_min <- lm(EV_lower ~ Year, data = subset(df, Country == country[i] & Population == "Mild anemia"), na.action = na.omit)
+      model_moderate_min <- lm(EV_lower ~ Year, data = subset(df, Country == country[i] & Population == "Moderate anemia"), na.action = na.omit)
+      model_severe_min <- lm(EV_lower ~ Year, data = subset(df, Country == country[i] & Population == "Severe anemia"), na.action = na.omit)
       preds$EV_lower[preds$Country == country[i] & preds$Population == "Mild anemia"] <- max(predict(model_mild_min, newdata = data.frame(Year = predict.year)), 0)
       preds$EV_lower[preds$Country == country[i] & preds$Population == "Moderate anemia"] <- max(predict(model_moderate_min, newdata = data.frame(Year = predict.year)), 0)
       preds$EV_lower[preds$Country == country[i] & preds$Population == "Severe anemia"] <- max(predict(model_severe_min, newdata = data.frame(Year = predict.year)), 0)
       
       #EV upper, not pregnant
-      model_mild_max <- lm(EV_upper ~ Year, data = subset(df, Country == country[i] & Population == "Mild anemia"))
-      model_moderate_max <- lm(EV_upper ~ Year, data = subset(df, Country == country[i] & Population == "Moderate anemia"))
-      model_severe_max <- lm(EV_upper ~ Year, data = subset(df, Country == country[i] & Population == "Severe anemia"))
+      model_mild_max <- lm(EV_upper ~ Year, data = subset(df, Country == country[i] & Population == "Mild anemia"), na.action = na.omit)
+      model_moderate_max <- lm(EV_upper ~ Year, data = subset(df, Country == country[i] & Population == "Moderate anemia"), na.action = na.omit)
+      model_severe_max <- lm(EV_upper ~ Year, data = subset(df, Country == country[i] & Population == "Severe anemia"), na.action = na.omit)
       preds$EV_upper[preds$Country == country[i] & preds$Population == "Mild anemia"] <- max(predict(model_mild_max, newdata = data.frame(Year = predict.year)), 0)
       preds$EV_upper[preds$Country == country[i] & preds$Population == "Moderate anemia"] <- max(predict(model_moderate_max, newdata = data.frame(Year = predict.year)), 0)
       preds$EV_upper[preds$Country == country[i] & preds$Population == "Severe anemia"] <- max(predict(model_severe_max, newdata = data.frame(Year = predict.year)), 0)
       
       #Pr, pregnant
-      model_mild_med_preg <- lm(Pr_pregnant ~ Year, data = subset(df, Country == country[i] & Population == "Mild anemia"))
-      model_moderate_med_preg <- lm(Pr_pregnant ~ Year, data = subset(df, Country == country[i] & Population == "Moderate anemia"))
-      model_severe_med_preg <- lm(Pr_pregnant ~ Year, data = subset(df, Country == country[i] & Population == "Severe anemia"))
+      model_mild_med_preg <- lm(Pr_pregnant ~ Year, data = subset(df, Country == country[i] & Population == "Mild anemia"), na.action = na.omit)
+      model_moderate_med_preg <- lm(Pr_pregnant ~ Year, data = subset(df, Country == country[i] & Population == "Moderate anemia"), na.action = na.omit)
+      model_severe_med_preg <- lm(Pr_pregnant ~ Year, data = subset(df, Country == country[i] & Population == "Severe anemia"), na.action = na.omit)
       preds$Pr_pregnant[preds$Country == country[i] & preds$Population == "Mild anemia"] <- max(predict(model_mild_med_preg, newdata = data.frame(Year = predict.year)), 0)
       preds$Pr_pregnant[preds$Country == country[i] & preds$Population == "Moderate anemia"] <- max(predict(model_moderate_med_preg, newdata = data.frame(Year = predict.year)), 0)
       preds$Pr_pregnant[preds$Country == country[i] & preds$Population == "Severe anemia"] <- max(predict(model_severe_med_preg, newdata = data.frame(Year = predict.year)), 0)
       
       #Pr lower, pregnant
-      model_mild_min_preg <- lm(Pr_pregnant_lower ~ Year, data = subset(df, Country == country[i] & Population == "Mild anemia"))
-      model_moderate_min_preg <- lm(Pr_pregnant_lower ~ Year, data = subset(df, Country == country[i] & Population == "Moderate anemia"))
-      model_severe_min_preg <- lm(Pr_pregnant_lower ~ Year, data = subset(df, Country == country[i] & Population == "Severe anemia"))
+      model_mild_min_preg <- lm(Pr_pregnant_lower ~ Year, data = subset(df, Country == country[i] & Population == "Mild anemia"), na.action = na.omit)
+      model_moderate_min_preg <- lm(Pr_pregnant_lower ~ Year, data = subset(df, Country == country[i] & Population == "Moderate anemia"), na.action = na.omit)
+      model_severe_min_preg <- lm(Pr_pregnant_lower ~ Year, data = subset(df, Country == country[i] & Population == "Severe anemia"), na.action = na.omit)
       preds$Pr_pregnant_lower[preds$Country == country[i] & preds$Population == "Mild anemia"] <- max(predict(model_mild_min_preg, newdata = data.frame(Year = predict.year)), 0)
       preds$Pr_pregnant_lower[preds$Country == country[i] & preds$Population == "Moderate anemia"] <- max(predict(model_moderate_min_preg, newdata = data.frame(Year = predict.year)), 0)
       preds$Pr_pregnant_lower[preds$Country == country[i] & preds$Population == "Severe anemia"] <- max(predict(model_severe_min_preg, newdata = data.frame(Year = predict.year)), 0)
       
       #Pr upper, pregnant
-      model_mild_max_preg <- lm(Pr_pregnant_upper ~ Year, data = subset(df, Country == country[i] & Population == "Mild anemia"))
-      model_moderate_max_preg <- lm(Pr_pregnant_upper ~ Year, data = subset(df, Country == country[i] & Population == "Moderate anemia"))
-      model_severe_max_preg <- lm(Pr_pregnant_upper ~ Year, data = subset(df, Country == country[i] & Population == "Severe anemia"))
+      model_mild_max_preg <- lm(Pr_pregnant_upper ~ Year, data = subset(df, Country == country[i] & Population == "Mild anemia"), na.action = na.omit)
+      model_moderate_max_preg <- lm(Pr_pregnant_upper ~ Year, data = subset(df, Country == country[i] & Population == "Moderate anemia"), na.action = na.omit)
+      model_severe_max_preg <- lm(Pr_pregnant_upper ~ Year, data = subset(df, Country == country[i] & Population == "Severe anemia"), na.action = na.omit)
       preds$Pr_pregnant_upper[preds$Country == country[i] & preds$Population == "Mild anemia"] <- max(predict(model_mild_max_preg, newdata = data.frame(Year = predict.year)), 0)
       preds$Pr_pregnant_upper[preds$Country == country[i] & preds$Population == "Moderate anemia"] <- max(predict(model_moderate_max_preg, newdata = data.frame(Year = predict.year)), 0)
       preds$Pr_pregnant_upper[preds$Country == country[i] & preds$Population == "Severe anemia"] <- max(predict(model_severe_max_preg, newdata = data.frame(Year = predict.year)), 0)
@@ -151,27 +151,27 @@ predict.wra <- function(data, year.start, predict.year, country){
   
   for (i in 1:length(country)){
     #EV, not pregnant
-    model_med <- lm(EV ~ Year, data = subset(df, Country == country[i]))
+    model_med <- lm(EV ~ Year, data = subset(df, Country == country[i]), na.action = na.omit)
     preds$EV[preds$Country == country[i]] <- max(predict(model_med, newdata = data.frame(Year = predict.year)), 0)
     
     #EV lower, not pregnant
-    model_min <- lm(EV_lower ~ Year, data = subset(df, Country == country[i]))
+    model_min <- lm(EV_lower ~ Year, data = subset(df, Country == country[i]), na.action = na.omit)
     preds$EV_lower[preds$Country == country[i]] <- max(predict(model_min, newdata = data.frame(Year = predict.year)), 0)
     
     #EV upper, not pregnant
-    model_max <- lm(EV_upper ~ Year, data = subset(df, Country == country[i]))
+    model_max <- lm(EV_upper ~ Year, data = subset(df, Country == country[i]), na.action = na.omit)
     preds$EV_upper[preds$Country == country[i]] <- max(predict(model_max, newdata = data.frame(Year = predict.year)), 0)
     
     #Pr, pregnant
-    model_med_preg <- lm(Pr_pregnant ~ Year, data = subset(df, Country == country[i]))
+    model_med_preg <- lm(Pr_pregnant ~ Year, data = subset(df, Country == country[i]), na.action = na.omit)
     preds$Pr_pregnant[preds$Country == country[i]] <- max(predict(model_med_preg, newdata = data.frame(Year = predict.year)), 0)
     
     #Pr lower, pregnant
-    model_min_preg <- lm(Pr_pregnant_lower ~ Year, data = subset(df, Country == country[i]))
+    model_min_preg <- lm(Pr_pregnant_lower ~ Year, data = subset(df, Country == country[i]), na.action = na.omit)
     preds$Pr_pregnant_lower[preds$Country == country[i]] <- max(predict(model_min_preg, newdata = data.frame(Year = predict.year)), 0)
     
     #Pr upper, pregnant
-    model_max_preg <- lm(Pr_pregnant_upper ~ Year, data = subset(df, Country == country[i]))
+    model_max_preg <- lm(Pr_pregnant_upper ~ Year, data = subset(df, Country == country[i]), na.action = na.omit)
     preds$Pr_pregnant_upper[preds$Country == country[i]] <- max(predict(model_max_preg, newdata = data.frame(Year = predict.year)), 0)
     
   }
@@ -196,17 +196,100 @@ predict.tot <- function(data, year.start, predict.year, country){
   
   for (i in 1:length(country)){
     #EV
-    model_med <- lm(EV ~ Year, data = subset(df, Country == country[i]))
+    model_med <- lm(EV ~ Year, data = subset(df, Country == country[i]), na.action = na.omit)
     preds$EV[preds$Country == country[i]] <- max(predict(model_med, newdata = data.frame(Year = predict.year)), 0)
     
     #EV lower
-    model_min <- lm(EV_lower ~ Year, data = subset(df, Country == country[i]))
+    model_min <- lm(EV_lower ~ Year, data = subset(df, Country == country[i]), na.action = na.omit)
     preds$EV_lower[preds$Country == country[i]] <- max(predict(model_min, newdata = data.frame(Year = predict.year)), 0)
     
     #EV upper
-    model_max <- lm(EV_upper ~ Year, data = subset(df, Country == country[i]))
+    model_max <- lm(EV_upper ~ Year, data = subset(df, Country == country[i]), na.action = na.omit)
     preds$EV_upper[preds$Country == country[i]] <- max(predict(model_max, newdata = data.frame(Year = predict.year)), 0)
   }
   
   preds |> arrange(Country)
+}
+
+
+
+#Simulation function: create samples
+simulator <- function(country, year, pop_wra, pop_anaemic, malaria_weight){
+  
+  pop_wra
+  pop_anaemic
+  
+  df <- data.frame(Pr_pregnant = with(
+    subset(pop_wra, Country == country & Year == year),
+    rtri(trials,
+         min = Pr_pregnant_lower,
+         max = Pr_pregnant_upper,
+         mode = Pr_pregnant
+    )
+  ))
+  
+  df$wra <- with(
+    subset(pop_wra, Country == country & Year == year),
+    rtri(
+      n = trials,
+      min = EV_lower,
+      max = EV_upper,
+      mode = EV
+    )
+  )
+  
+  df$pregnant <- df$Pr_pregnant * df$wra
+  
+  df$mild_anaemia <- with(
+    subset(pop_anaemic, Country == country & Year == year & Population == "Mild anemia"),
+    rtri(
+      n = trials,
+      min = EV_lower,
+      max = EV_upper,
+      mode = EV
+    )
+  )
+  
+  df$moderate_anaemia <- with(
+    subset(pop_anaemic, Country == country & Year == year & Population == "Moderate anemia"),
+    rtri(
+      n = trials,
+      min = EV_lower,
+      max = EV_upper,
+      mode = EV
+    )
+  )
+  
+  df$severe_anaemia <- with(
+    subset(pop_anaemic, Country == country & Year == year & Population == "Severe anemia"),
+    rtri(
+      n = trials,
+      min = EV_lower,
+      max = EV_upper,
+      mode = EV
+    )
+  )
+  
+  df$mild_post_supp <- with(
+    df,
+    mild_anaemia * (1 - (1 - staple_eff_per) * staple_coverage)
+  )
+  
+  df$moderate_post_supp <- with(
+    df,
+    moderate_anaemia * (1 - (1 - staple_eff_per) * staple_coverage)
+  )
+  
+  df$severe_post_supp <- with(
+    df,
+    severe_anaemia * (1 - (1 - staple_eff_per) * staple_coverage)
+  )
+  
+  df$mild_post_supp_chemoprev <- df$mild_post_supp - malaria_weight * (df$Pr_pregnant * df$mild_post_supp * (1 - malarials_eff_per) * malarials_coverage)
+  
+  df$moderate_post_supp_chemoprev <- df$moderate_post_supp - malaria_weight * (df$Pr_pregnant * df$moderate_post_supp * (1 - malarials_eff_per) * malarials_coverage)
+  
+  df$severe_post_supp_chemoprev <- df$severe_post_supp - malaria_weight * (df$Pr_pregnant * df$severe_post_supp * (1 - malarials_eff_per) * malarials_coverage)
+  
+  df
 }

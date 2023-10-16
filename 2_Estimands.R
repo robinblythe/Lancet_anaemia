@@ -4,8 +4,9 @@ options(scipen = 999, digits = 5)
 library(tidyverse)
 library(countrycode)
 library(EnvStats)
+library(data.table)
 
-Country <- c("Armenia", "Malawi")
+countries <- c("Armenia", "Malawi")
 pred_year <- 2030
 
 # Obtain population estimates with 2025 forecasts
@@ -22,122 +23,64 @@ malarials_eff_per <- rtri(trials, min = 0.4, mode = 0.6, max = 0.8)
 malarials_coverage <- rtri(trials, min = 0.5, mode = 0.6, max = 0.7)
 malaria_weights <- c(0, 1)
 
+Armenia <- simulator("Armenia", 2030, pop_wra = df_wra, pop_anaemic = df_anaemic, malaria_weight = 0)
+Malawi <- simulator("Malawi", 2030, pop_wra = df_wra, pop_anaemic = df_anaemic, malaria_weight = 1)
 
-# Sim Malawi
-# Obtain WRA estimates
-malawi <- data.frame(Pr_pregnant = with(
-  subset(df_wra, Country == "Malawi" & Year == 2030),
-  rtri(trials,
-    min = Pr_pregnant_lower,
-    max = Pr_pregnant_upper,
-    mode = Pr_pregnant
-  )
-))
 
-malawi$wra <- with(
-  subset(df_wra, Country == "Malawi" & Year == 2030),
-  rtri(
-    n = trials,
-    min = EV_lower,
-    max = EV_upper,
-    mode = EV
-  )
+
+diffset <- subset(df_anaemic, Year == 2030) |> 
+  select(-c(Pr_pregnant, Pr_pregnant_lower, Pr_pregnant_upper))
+
+sims <- data.frame(
+  Country = c(rep("Armenia", 3), rep("Malawi", 3)),
+  Population = rep(c("Mild anemia", "Moderate anemia", "Severe anemia"), 2),
+  Year = rep(2030, 6),
+  EV = c(mean(Armenia$mild_post_supp_chemoprev - Armenia$mild_anaemia), 
+         mean(Armenia$moderate_post_supp_chemoprev - Armenia$moderate_anaemia), 
+         mean(Armenia$severe_post_supp_chemoprev - Armenia$severe_anaemia),
+         mean(Malawi$mild_post_supp_chemoprev - Malawi$mild_anaemia),
+         mean(Malawi$moderate_post_supp_chemoprev - Malawi$moderate_anaemia),
+         mean(Malawi$severe_post_supp_chemoprev - Malawi$severe_anaemia)),
+  EV_lower = c(quantile(Armenia$mild_post_supp_chemoprev - Armenia$mild_anaemia, 0.025), 
+               quantile(Armenia$moderate_post_supp_chemoprev - Armenia$moderate_anaemia, 0.025), 
+               quantile(Armenia$severe_post_supp_chemoprev - Armenia$severe_anaemia, 0.025),
+               quantile(Malawi$mild_post_supp_chemoprev - Malawi$mild_anaemia, 0.025), 
+               quantile(Malawi$moderate_post_supp_chemoprev - Malawi$moderate_anaemia, 0.025), 
+               quantile(Malawi$severe_post_supp_chemoprev - Malawi$severe_anaemia, 0.025)),
+  EV_upper = c(quantile(Armenia$mild_post_supp_chemoprev - Armenia$mild_anaemia, 0.975), 
+               quantile(Armenia$moderate_post_supp_chemoprev - Armenia$moderate_anaemia, 0.975), 
+               quantile(Armenia$severe_post_supp_chemoprev - Armenia$severe_anaemia, 0.975),
+               quantile(Malawi$mild_post_supp_chemoprev - Malawi$mild_anaemia, 0.975), 
+               quantile(Malawi$moderate_post_supp_chemoprev - Malawi$moderate_anaemia, 0.975), 
+               quantile(Malawi$severe_post_supp_chemoprev - Malawi$severe_anaemia, 0.975))
 )
 
-malawi$pregnant <- malawi$Pr_pregnant * malawi$wra
+sim <- rbindlist(list(diffset, sims))[, lapply(.SD, sum, na.rm = TRUE), by = list(Country, Population, Year)]
 
-malawi$mild_anaemia <- with(
-  subset(df_anaemic, Country == "Malawi" & Year == 2030 & Population == "Mild anemia"),
-  rtri(
-    n = trials,
-    min = EV_lower,
-    max = EV_upper,
-    mode = EV
-  )
-)
+diffset <- subset(df_anaemic, Year == 2021) |> 
+  select(-c(Pr_pregnant, Pr_pregnant_lower, Pr_pregnant_upper))
 
-malawi$moderate_anaemia <- with(
-  subset(df_anaemic, Country == "Malawi" & Year == 2030 & Population == "Moderate anemia"),
-  rtri(
-    n = trials,
-    min = EV_lower,
-    max = EV_upper,
-    mode = EV
-  )
-)
+sim <- full_join(diffset, sim)
 
-malawi$severe_anaemia <- with(
-  subset(df_anaemic, Country == "Malawi" & Year == 2030 & Population == "Severe anemia"),
-  rtri(
-    n = trials,
-    min = EV_lower,
-    max = EV_upper,
-    mode = EV
-  )
-)
 
-malawi$mild_post_supp <- with(
-  malawi,
-  mild_anaemia * (1 - (1 - staple_eff_per) * staple_coverage)
-)
+# Graphics: the density plots of number of anaemia cases on x axis, countries as facets, y axis is mild-moderate-severe
+p <- df_anaemic |> ggplot()
 
-malawi$moderate_post_supp <- with(
-  malawi,
-  moderate_anaemia * (1 - (1 - staple_eff_per) * staple_coverage)
-)
+p +
+  geom_line(aes(x = Year, y = EV, colour = Population), linewidth = 0.8) +
+  geom_ribbon(aes(x = Year, y = EV, colour = Population, ymin = EV_lower, ymax = EV_upper), linetype = "dotted", alpha = 0.1) +
+  geom_line(data = sim, aes(x = Year, y = EV, colour = Population), linetype = "dashed", linewidth = 0.8) +
+  facet_wrap(vars(Country), scales = "free_y") +
+  theme_bw()
 
-malawi$severe_post_supp <- with(
-  malawi,
-  severe_anaemia * (1 - (1 - staple_eff_per) * staple_coverage)
-)
+ggsave(filename = "test.jpg", dpi = 320)
 
-malawi$mild_post_supp_chemoprev <- malawi$mild_post_supp - (malawi$Pr_pregnant * malawi$mild_post_supp * (1 - malarials_eff_per) * malarials_coverage)
-
-malawi$moderate_post_supp_chemoprev <- malawi$moderate_post_supp - (malawi$Pr_pregnant * malawi$moderate_post_supp * (1 - malarials_eff_per) * malarials_coverage)
-
-malawi$severe_post_supp_chemoprev <- malawi$severe_post_supp - (malawi$Pr_pregnant * malawi$severe_post_supp * (1 - malarials_eff_per) * malarials_coverage)
+write.csv(sim, file = "./post_tx_prev.csv")
+write.csv(df_anaemic, file = "./pre_tx_prev.csv")
 
 
 
-#Graphics: the density plots of number of anaemia cases on x axis, countries as facets, y axis is mild-moderate-severe
-df1 <- df_anaemic |>
-  select(Country, Population, Year, EV, EV_lower, EV_upper)
-
-df2 <- data.frame(
-  Country = "Malawi",
-  Population = c("Mild anemia (forecasted)", "Moderate anemia (forecasted)", "Severe anemia (forecasted"),
-  Year = 2030,
-  EV = c(mean(malawi$mild_post_supp_chemoprev), mean(malawi$moderate_post_supp_chemoprev), mean(malawi$severe_post_supp_chemoprev)),
-  EV_lower = c(quantile(malawi$mild_post_supp_chemoprev, 0.025), 
-               quantile(malawi$moderate_post_supp_chemoprev, 0.025), 
-               quantile(malawi$severe_post_supp_chemoprev, 0.025)),
-  EV_upper = c(quantile(malawi$mild_post_supp_chemoprev, 0.975), 
-               quantile(malawi$moderate_post_supp_chemoprev, 0.975), 
-               quantile(malawi$severe_post_supp_chemoprev, 0.975))
-)
-
-
-df <- full_join(
-  df_anaemic |>
-    select(Country, Population, Year, EV, EV_lower, EV_upper),
-  
-  data.frame(
-    Country = "Malawi",
-    Population = c("Mild anemia (forecasted)", "Moderate anemia (forecasted)", "Severe anemia (forecasted"),
-    Year = 2030,
-    EV = c(mean(malawi$mild_post_supp_chemoprev), mean(malawi$moderate_post_supp_chemoprev), mean(malawi$severe_post_supp_chemoprev)),
-    EV_lower = c(quantile(malawi$mild_post_supp_chemoprev, 0.025), 
-                 quantile(malawi$moderate_post_supp_chemoprev, 0.025), 
-                 quantile(malawi$severe_post_supp_chemoprev, 0.025)),
-    EV_upper = c(quantile(malawi$mild_post_supp_chemoprev, 0.975), 
-                 quantile(malawi$moderate_post_supp_chemoprev, 0.975), 
-                 quantile(malawi$severe_post_supp_chemoprev, 0.975))
-  )
-) |>
-  arrange()
-
-
-#Remember to multiply cases by burden at the end?
+# Remember to multiply cases by burden at the end?
 
 
 
@@ -183,10 +126,7 @@ for (i in 1:length(Country)) {
 
 
 # Some visualisations:
-ggplot(df_anaemic, aes(x = Year, y = EV, colour = Population)) +
-  geom_smooth() +
-  geom_ribbon(aes(ymin = EV_lower, ymax = EV_upper), linetype = "dotted", alpha = 0.1) +
-  facet_wrap(vars(Country), scales = "free_y")
+
 
 
 # First need to estimate population for 2025
