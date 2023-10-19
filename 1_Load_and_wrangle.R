@@ -22,8 +22,9 @@ fert <- read.csv(paste0(import, "fertility_rates.csv")) |>
   select(-c("Country.Name", "Country.Code", "Indicator.Name", "Indicator.Code")) |>
   pivot_longer(!location_name, names_to = "year_id", values_to = "Fertility_Rate") |>
   mutate(year_id = as.integer(gsub("X", "", year_id))) |>
-  filter(year_id >= 1990) |>
-  suppressWarnings()
+  filter(year_id >= 2000) |>
+  suppressWarnings() |>
+  na.omit()
   
 
 #Stillbirth rates per 1000 live births, 2021, from Unicef
@@ -36,7 +37,6 @@ still <- read.csv(paste0(import, "Stillbirth-rate-and-deaths_2023.csv")) |>
   pivot_wider(names_from = "Uncertainty.Bounds.", values_from = "value") |>
   mutate(year_id = as.integer(gsub(c("X", ".5"), "", year_id))) |>
   suppressWarnings()
-  
   
 #Replace stillbirth per 1000 live births will stillbirth rate per woman
 pregnancy <- inner_join(fert, still) |>
