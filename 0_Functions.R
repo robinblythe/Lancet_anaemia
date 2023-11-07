@@ -212,12 +212,20 @@ predict.tot <- function(data, year.start, predict.year, country){
 }
 
 
-
+####################################
 #Simulation function: create samples
-simulator <- function(country, year, pop_wra, pop_anaemic, malaria_weight){
+####################################
+simulator <- function(country, year, pop_wra, pop_anaemic, malaria_weight, interventionlist){
   
   pop_wra
   pop_anaemic
+  
+  staple_coverage <- ifelse("Staple foods supplementation" %in% interventionlist,
+                            staple_coverage,
+                            0)
+  malarials_coverage <- ifelse("Anti-malarial pregnancy chemoprevention" %in% interventionlist,
+                               malarials_coverage,
+                               0)
   
   df <- data.frame(Pr_pregnant = with(
     subset(pop_wra, Country == country & Year == year),
@@ -270,26 +278,26 @@ simulator <- function(country, year, pop_wra, pop_anaemic, malaria_weight){
     )
   )
   
-  df$mild_post_supp <- with(
+  df$mild_post_1 <- with(
     df,
     mild_anaemia * (1 - (1 - staple_eff_per) * staple_coverage)
   )
   
-  df$moderate_post_supp <- with(
+  df$moderate_post_1 <- with(
     df,
     moderate_anaemia * (1 - (1 - staple_eff_per) * staple_coverage)
   )
   
-  df$severe_post_supp <- with(
+  df$severe_post_1 <- with(
     df,
     severe_anaemia * (1 - (1 - staple_eff_per) * staple_coverage)
   )
   
-  df$mild_post_supp_chemoprev <- df$mild_post_supp - malaria_weight * (df$Pr_pregnant * df$mild_post_supp * (1 - malarials_eff_per) * malarials_coverage)
+  df$mild_post_2 <- df$mild_post_1 - malaria_weight * (df$Pr_pregnant * df$mild_post_1 * (1 - malarials_eff_per) * malarials_coverage)
   
-  df$moderate_post_supp_chemoprev <- df$moderate_post_supp - malaria_weight * (df$Pr_pregnant * df$moderate_post_supp * (1 - malarials_eff_per) * malarials_coverage)
+  df$moderate_post_2 <- df$moderate_post_1 - malaria_weight * (df$Pr_pregnant * df$moderate_post_1 * (1 - malarials_eff_per) * malarials_coverage)
   
-  df$severe_post_supp_chemoprev <- df$severe_post_supp - malaria_weight * (df$Pr_pregnant * df$severe_post_supp * (1 - malarials_eff_per) * malarials_coverage)
+  df$severe_post_2 <- df$severe_post_1 - malaria_weight * (df$Pr_pregnant * df$severe_post_1 * (1 - malarials_eff_per) * malarials_coverage)
   
   df
 }
