@@ -66,7 +66,7 @@ predict.anemia <- function(data, year.start, predict.year, country){
                Country %in% country &
                Year >= year.start)
   
-  preds <- data.frame(Country = country,
+  preds <- data.frame(Country = df$Country,
                       Year = predict.year,
                       Population = df$Population,
                       EV = NA_real_,
@@ -76,6 +76,7 @@ predict.anemia <- function(data, year.start, predict.year, country){
                       Pr_pregnant_lower = NA_real_,
                       Pr_pregnant_upper = NA_real_) |>
     distinct()
+  
   
     for (i in 1:length(country)){
       #EV, not pregnant

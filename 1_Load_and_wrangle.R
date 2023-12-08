@@ -14,7 +14,7 @@ df <- do.call(rbind, list(
   read.csv(paste0(import, "moderate_anemia_prev_data.csv")),
   read.csv(paste0(import, "severe_anemia_prev_data.csv"))
   )) |>
-  mutate(location_name <- countryname(location_name))
+  mutate(location_name = countryname(location_name)) 
 
 #Live births per woman of reproductive age, 2021
 fert <- read.csv(paste0(import, "fertility_rates.csv")) |>
@@ -64,21 +64,21 @@ agegroup <- seq(8, 14, 1)
 names <- c("Country", "Population", "Year", "EV", "EV_lower", "EV_upper", 
            "Pr_pregnant", "Pr_pregnant_lower", "Pr_pregnant_upper")
 
-df_anaemic <- inner_join(obtain_anaemic(data = df, country = countries, agegroup = agegroup), pregnancy) |>
+df_anaemic <- inner_join(obtain_anaemic(data = df, country = country, agegroup = agegroup), pregnancy) |>
   filter(year_id >= 2000) |>
   arrange(location_name)
 
 colnames(df_anaemic) <- names
 
 
-df_wra <- inner_join(obtain_wra(data = df, country = countries, agegroup = agegroup), pregnancy) |>
+df_wra <- inner_join(obtain_wra(data = df, country = country, agegroup = agegroup), pregnancy) |>
   filter(year_id >= 2000) |>  
   arrange(location_name)
 
 colnames(df_wra) <- names
 
 
-df_pop <- obtain_tot(data = df, country = countries) |>
+df_pop <- obtain_tot(data = df, country = country) |>
   filter(year_id >= 2000)
 
 colnames(df_pop) <- names[1:6]
@@ -86,13 +86,13 @@ colnames(df_pop) <- names[1:6]
 remove(df, pregnancy, agegroup, import, names, obtain_anaemic, obtain_tot, obtain_wra)
 
 #Extrapolate to pred_year from 2015 using linear model
-est <- predict.anemia(df_anaemic, year.start = 2015, predict.year = pred_year, country = countries)
+est <- predict.anemia(df_anaemic, year.start = 2015, predict.year = pred_year, country = country)
 df_anaemic <- full_join(df_anaemic, est) |> arrange(Country, Population, Year)
 
-est <- predict.wra(df_wra, year.start = 2015, predict.year = pred_year, country = countries)
+est <- predict.wra(df_wra, year.start = 2015, predict.year = pred_year, country = country)
 df_wra <- full_join(df_wra, est) |> arrange(Country, Population, Year)
 
-est <- predict.tot(df_pop, year.start = 2015, predict.year = pred_year, country = countries)
+est <- predict.tot(df_pop, year.start = 2015, predict.year = pred_year, country = country)
 df_pop <- full_join(df_pop, est) |> arrange(Country, Population, Year)
 
 remove(est, predict.anemia, predict.tot, predict.wra)

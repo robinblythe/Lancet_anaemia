@@ -6,7 +6,7 @@ library(countrycode)
 library(EnvStats)
 library(data.table)
 
-countries <- c("Armenia", "Malawi")
+country <- c("Armenia", "Malawi")
 pred_year <- 2030
 
 # Obtain population estimates with forecasts of pred_year
@@ -34,19 +34,20 @@ Armenia <- simulator("Armenia", pred_year, pop_wra = df_wra, pop_anaemic = df_an
 Malawi <- simulator("Malawi", pred_year, pop_wra = df_wra, pop_anaemic = df_anaemic, malaria_weight = 1, interventionlist = interventions)
 
 results <- list()
-for (i in 1:length(countries)){
-  df <- simulator(countries[i], 
+for (i in 1:length(country)){
+  df <- simulator(country[i], 
                   year = pred_year, 
                   pop_wra = df_wra, 
                   pop_anaemic = df_anaemic, 
-                  malaria_weight = malaria_weights[i])
+                  malaria_weight = malaria_weights[i],
+                  interventionlist = interventions)
   
   baseline <- subset(df_anaemic,
-                     Country == countries[i] &
+                     Country == country[i] &
                        Year == pred_year) |>
     select(-c(Pr_pregnant, Pr_pregnant_lower, Pr_pregnant_upper))
   
-  diff_mild <- data.frame(Country = countries[i],
+  diff_mild <- data.frame(Country = country[i],
                  Population = "Mild anemia",
                  Year = pred_year,
                  EV = mean(df$mild_post_2 - df$mild_anaemia),
@@ -54,7 +55,7 @@ for (i in 1:length(countries)){
                  `EV_upper` = quantile(df$mild_post_2 - df$mild_anaemia, 0.975),
                  Model = 1)
   
-  diff_moderate <- data.frame(Country = countries[i],
+  diff_moderate <- data.frame(Country = country[i],
                      Population = "Moderate anemia",
                      Year = pred_year,
                      EV = mean(df$moderate_post_2 - df$moderate_anaemia),
@@ -62,7 +63,7 @@ for (i in 1:length(countries)){
                      `EV_upper` = quantile(df$moderate_post_2 - df$moderate_anaemia, 0.975),
                      Model = 1)
   
-  diff_severe <- data.frame(Country = countries[i],
+  diff_severe <- data.frame(Country = country[i],
                    Population = "Severe anemia",
                    Year = pred_year,
                    EV = mean(df$severe_post_2 - df$severe_anaemia),
@@ -78,8 +79,13 @@ for (i in 1:length(countries)){
 }
 
 out <- do.call(rbind, results)
+remove(results)
 
+diffset <- subset(df_anaemic, Year == 2021) |> 
+  select(-c(Pr_pregnant, Pr_pregnant_lower, Pr_pregnant_upper))
 
+sim <- full_join(diffset, out)
+remove(diffset)
 
 # Graphics: the density plots of number of anaemia cases on x axis, countries as facets, y axis is mild-moderate-severe
 p <- df_anaemic |> ggplot()
