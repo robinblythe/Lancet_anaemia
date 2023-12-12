@@ -1,3 +1,4 @@
+gc()
 options(scipen = 999, digits = 5)
 
 library(tidyverse)

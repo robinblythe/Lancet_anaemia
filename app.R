@@ -4,11 +4,9 @@ library(countrycode)
 
 source(file.path(here(), "0_Functions.R"))
 
-# Load data
-
-
-
-
+# Load country codes
+load(file = "countries.Rdata")
+load(file = "data.Rdata")
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
@@ -19,7 +17,9 @@ ui <- fluidPage(
   # Sidebar with a slider input for number of bins
   sidebarLayout(
     sidebarPanel(
-      uiOutput("var_ui1")
+      selectInput("countries",
+                  "Select country for analysis",
+                  choices = sort(country))
     ),
 
     # Show a plot of the generated distribution

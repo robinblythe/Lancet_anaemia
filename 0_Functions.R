@@ -63,7 +63,6 @@ obtain_tot <- function(data, country){
 predict.anemia <- function(data, year.start, predict.year, country){
   
   df <- subset(data,
-               Country %in% country &
                Year >= year.start)
   
   preds <- data.frame(Country = df$Country,
@@ -76,7 +75,6 @@ predict.anemia <- function(data, year.start, predict.year, country){
                       Pr_pregnant_lower = NA_real_,
                       Pr_pregnant_upper = NA_real_) |>
     distinct()
-  
   
     for (i in 1:length(country)){
       #EV, not pregnant
@@ -128,7 +126,6 @@ predict.anemia <- function(data, year.start, predict.year, country){
       preds$Pr_pregnant_upper[preds$Country == country[i] & preds$Population == "Severe anemia"] <- max(predict(model_severe_max_preg, newdata = data.frame(Year = predict.year)), 0)
       
     }
-  
   preds |> arrange(Country)
 }
 
