@@ -39,7 +39,7 @@ still <- read.csv(paste0(import, "Stillbirth-rate-and-deaths_2023.csv")) |>
   mutate(year_id = as.integer(gsub(c("X", ".5"), "", year_id))) |>
   suppressWarnings()
   
-#Replace stillbirth per 1000 live births will stillbirth rate per woman
+#Replace stillbirth per 1000 live births with stillbirth rate per woman
 pregnancy <- inner_join(fert, still) |>
   mutate(still_mid = Median/1000 * Fertility_Rate,
          still_low = Lower/1000 * Fertility_Rate,
@@ -60,8 +60,7 @@ remove(preg1)
 # Age group IDs: 8 to 14
 agegroup <- seq(8, 14, 1)
 
-#Use custom functions with Armenia, Malawi
-#To apply to entire dataset, use country = unique(df$location_name)
+#Use custom functions using predetermined country set
 names <- c("Country", "Population", "Year", "EV", "EV_lower", "EV_upper", 
            "Pr_pregnant", "Pr_pregnant_lower", "Pr_pregnant_upper")
 
