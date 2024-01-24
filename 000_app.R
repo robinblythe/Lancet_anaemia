@@ -4,57 +4,56 @@ library(here)
 
 source(file.path(here(), "constants.R"))
 
-#Define UI
+# Define UI
 ui <- fluidPage(
 
-  #Application title
+  # Application title
   titlePanel("Lancet commission on anaemia"),
 
-  #Select country
+  # Select country
   sidebarLayout(
     sidebarPanel(
-      
       selectInput("countries",
-                  "Select country for analysis",
-                  choices = c("", sort(country))),
-      
+        "Select country for analysis",
+        choices = c("", sort(country))
+      ),
       checkboxGroupInput("interventions",
-                         "Select interventions to simulate",
-                         choices = interventionlist
-                         ),
-
-      actionButton("run", 
-                   "Estimate")
-      
+        "Select interventions to simulate",
+        choices = interventionlist
+      ),
+      actionButton(
+        "run",
+        "Estimate"
+      )
     ),
-    
 
-    #Main panel
+
+    # Main panel
     mainPanel(
       plotOutput("sim") |> withSpinner(color = "#AD002AFF")
     )
   )
 )
 
-#Define server logic
+# Define server logic
 server <- function(input, output, session) {
-  
   output$sim <- renderPlot(NULL)
-  
-  #Run simulation based on inputs
+
+  # Run simulation based on inputs
   observeEvent(input$run, {
     isolate({
       country <- input$countries
       interventionlist <- input$interventions
     })
-    
+
+
     output$sim <- renderPlot(
-      run_sim(country = country,
-              interventionlist = interventionlist)
+      run_sim(
+        country = country,
+        interventionlist = interventionlist
+      )
     )
   })
-
-  
 }
 
 # Run the application

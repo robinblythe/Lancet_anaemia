@@ -210,10 +210,10 @@ predict.tot <- function(data, year.start, predict.year, country){
 }
 
 
-####################################
-#Simulation function: create samples
-####################################
-simulator <- function(country, year, pop_wra, pop_anaemic, malaria_weight, interventionlist){
+#####################################
+#Simulation function: create samples#
+#####################################
+simulator <- function(country, year, pop_wra, pop_anaemic, malaria_weight, interventionlist, trials){
   
   pop_wra
   pop_anaemic
@@ -276,6 +276,7 @@ simulator <- function(country, year, pop_wra, pop_anaemic, malaria_weight, inter
     )
   )
   
+  #Need to replace the staple_eff_per and staple_coverage with numerical refs so it's not name-dependent
   df$mild_post_1 <- with(
     df,
     mild_anaemia * (1 - (1 - staple_eff_per) * staple_coverage)
@@ -299,3 +300,13 @@ simulator <- function(country, year, pop_wra, pop_anaemic, malaria_weight, inter
   
   df
 }
+
+
+#Function to obtain YLDs from simulator-generated table
+yld <- function(sim){
+  sim[,c(4:6,(ncol(sim)-2):(ncol(sim)))]
+  sim$YLD <- sim$mild_anaemia*burden_mild + sim$moderate_anaemia*burden_moderate + sim$severe_anaemia*burden_severe
+  sim$YLD_post_2 <- sim$mild_post_2*burden_mild + sim$moderate_post_2*burden_moderate + sim$severe_post_2*burden_severe
+  sim |> select(YLD, YLD_post_2)
+}
+
