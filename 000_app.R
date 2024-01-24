@@ -46,7 +46,6 @@ server <- function(input, output, session) {
       interventionlist <- input$interventions
     })
 
-
     output$sim <- renderPlot(
       run_sim(
         country = country,
