@@ -22,16 +22,29 @@ trials <- 100000
 interventions <- c("Staple foods supplementation", "Anti-malarial pregnancy chemoprevention")
 
 # Cost per cure by intervention
-staple_cost_per <- rtri(trials, min = 0.10, mode = 0.12, max = 0.18)
-staple_eff_per <- rtri(trials, min = 0.975, mode = 0.976, max = 0.978)
+staple_cost <- rtri(trials, min = 0.10, mode = 0.12, max = 0.18)
+staple_eff <- rtri(trials, min = 0.975, mode = 0.976, max = 0.978)
 staple_coverage <- rtri(trials, min = 0.9, mode = 0.95, max = 0.98)
-malarials_cost_per <- rtri(trials, min = 2.70, mode = 3.64, max = 8.20)
-malarials_eff_per <- rtri(trials, min = 0.4, mode = 0.6, max = 0.8)
+malarials_cost <- rtri(trials, min = 2.70, mode = 3.64, max = 8.20)
+malarials_eff <- rtri(trials, min = 0.4, mode = 0.6, max = 0.8)
 malarials_coverage <- rtri(trials, min = 0.5, mode = 0.6, max = 0.7)
 malaria_weights <- c(0, 1)
 
-Armenia <- simulator("Armenia", pred_year, pop_wra = df_wra, pop_anaemic = df_anaemic, malaria_weight = 0, interventionlist = interventions)
-Malawi <- simulator("Malawi", pred_year, pop_wra = df_wra, pop_anaemic = df_anaemic, malaria_weight = 1, interventionlist = interventions)
+Armenia <- simulator("Armenia", 
+                     pred_year, 
+                     pop_wra = df_wra, 
+                     pop_anaemic = df_anaemic, 
+                     malaria_weight = 0, 
+                     interventionlist = interventions, 
+                     trials = trials)
+
+Malawi <- simulator("Malawi", 
+                    pred_year, 
+                    pop_wra = df_wra, 
+                    pop_anaemic = df_anaemic, 
+                    malaria_weight = 1, 
+                    interventionlist = interventions, 
+                    trials = trials)
 
 results <- list()
 for (i in 1:length(country)){

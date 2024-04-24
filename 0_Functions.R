@@ -3,7 +3,7 @@ library(tidyverse)
 
 # Anaemia estimates for women of reproductive age
 obtain_anaemic <- function(data, country, agegroup) {
-  subset(
+  subset( #Create subset of anaemic women of reproductive age by country
     data,
     sex == "Female" &
       age_group_id %in% agegroup &
@@ -12,7 +12,7 @@ obtain_anaemic <- function(data, country, agegroup) {
       location_name %in% country
   ) |>
     group_by(location_name, rei_name, year_id, metric_name) |>
-    summarise(
+    summarise( #Aggregate prevalence by anaemia type
       EV_prev = round(sum(val[metric_name == "Number"]), digits = 0),
       min_prev = round(sum(lower[metric_name == "Number"]), digits = 0),
       max_prev = round(sum(upper[metric_name == "Number"]), digits = 0)
@@ -23,7 +23,7 @@ obtain_anaemic <- function(data, country, agegroup) {
 
 # All women of reproductive age
 obtain_wra <- function(data, country, agegroup) {
-  subset(
+  subset( #Create subset of women of reproductive age by country
     data,
     sex == "Female" &
       rei_name == "Mild anemia" &
@@ -32,14 +32,14 @@ obtain_wra <- function(data, country, agegroup) {
       location_name %in% country
   ) |>
     group_by(location_name, age_group_id, year_id) |>
-    summarise(
+    summarise( #Divide prevalence by rate to get estimate of total population by year
       EV_prev = val[metric_name == "Number"] / val[metric_name == "Rate"],
       min_prev = val[metric_name == "Number"] / upper[metric_name == "Rate"],
       max_prev = val[metric_name == "Number"] / lower[metric_name == "Rate"]
     ) |>
     ungroup() |>
     group_by(location_name, year_id) |>
-    summarise(
+    summarise( #Aggregate estimates across years
       EV_prev = sum(EV_prev),
       min_prev = sum(min_prev),
       max_prev = sum(max_prev),
@@ -51,21 +51,21 @@ obtain_wra <- function(data, country, agegroup) {
 
 # Total population
 obtain_tot <- function(data, country) {
-  subset(
+  subset( #Obtain estimates of total population for all-of-population interventions
     data,
     rei_name == "Mild anemia" &
       measure_name == "Prevalence" &
       location_name %in% country
   ) |>
     group_by(location_name, age_group_id, sex_id, year_id) |>
-    summarise(
+    summarise( #Divide prevalence by rate by year and sex for whole of population
       EV_prev = val[metric_name == "Number"] / val[metric_name == "Rate"],
       min_prev = val[metric_name == "Number"] / upper[metric_name == "Rate"],
       max_prev = val[metric_name == "Number"] / lower[metric_name == "Rate"]
     ) |>
     ungroup() |>
     group_by(location_name, year_id) |>
-    summarise(
+    summarise( #Aggregate estimates
       EV_prev = sum(EV_prev),
       min_prev = sum(min_prev),
       max_prev = sum(max_prev),
@@ -74,15 +74,22 @@ obtain_tot <- function(data, country) {
     relocate(location_name, rei_name)
 }
 
+#Replace the dataframe (min/med/max) with a dataframe of list columns sampling from triangular dist
+obtain_df_listcol <- function(data, country, n){
+  data |>
+    rowwise() |>
+    mutate(Prevalence = rtri(n = n, min = EV_lower, max = EV_upper))
+}
+
 
 # Predictor functions
 predict.anemia <- function(data, year.start, predict.year, country) {
-  df <- subset(
+  df <- subset( #Reduce to period of interest only
     data,
     Year >= year.start
   )
 
-  preds <- data.frame(
+  preds <- data.frame( #Create new dataframe
     Country = df$Country,
     Year = predict.year,
     Population = df$Population,
@@ -95,7 +102,7 @@ predict.anemia <- function(data, year.start, predict.year, country) {
   ) |>
     distinct()
 
-  for (i in 1:length(country)) {
+  for (i in 1:length(country)) { #For loop to populate estimates for each country, anaemia severity level using a linear model
     # EV, not pregnant
     model_mild_med <- lm(EV ~ Year, data = subset(df, Country == country[i] & Population == "Mild anemia"), na.action = na.omit)
     model_moderate_med <- lm(EV ~ Year, data = subset(df, Country == country[i] & Population == "Moderate anemia"), na.action = na.omit)

@@ -7,7 +7,7 @@ library(countrycode)
 source("./0_Functions.R")
 
 ## Load in data
-import <- "C:/Users/blythe/OneDrive - Queensland University of Technology/WHO anaemia/Population data/"
+import <- "C:/Users/blythe/OneDrive - Queensland University of Technology/Lancet anaemia/Population data/"
 
 #Anaemia rates from SBD data
 df <- do.call(rbind, list(
