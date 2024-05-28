@@ -1,0 +1,13 @@
+---
+title: "Setting targets in global health"
+---
+
+Paper will have league tables by region - region as facets on the Y-axis (vertical), and cost/DALY on the X-axis (horizontal) with a dashed line for each facet denoting the regional WTP
+
+Shiny app has the league tables by country (too much to fit into one)
+
+For the main analysis - we have historic prevalence, projected rates in 2030 (by region)
+
+2030 rate of anaemia: 
+- option 1 is just a spline extrapolation from last knot (based on current trends)
+- option 2 is to take the last date we have coverage data for, then get the rate of anaemia at that time and multiply it by the predicted population in 2030
