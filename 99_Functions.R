@@ -3,9 +3,9 @@
 rollup <- function(population) {
   if (population == "anaemic") { #Anaemic women
     do.call(rbind, list(
-      vroom("./Data/mild_anemia_prev_data.csv"),
-      vroom("./Data/moderate_anemia_prev_data.csv"),
-      vroom("./Data/severe_anemia_prev_data.csv")
+      vroom("./Data/mild_anemia_prev_data.csv", show_col_types = FALSE),
+      vroom("./Data/moderate_anemia_prev_data.csv", show_col_types = FALSE),
+      vroom("./Data/severe_anemia_prev_data.csv", show_col_types = FALSE)
     )) |>
       mutate(location_name = countryname(location_name)) |> # Standardise country names
       as_tibble() |>
@@ -21,9 +21,9 @@ rollup <- function(population) {
       select(location_name, year_id, rei_name, Prevalence)
   } else if (population == "wra") { #Women of reproductive age
     do.call(rbind, list(
-      vroom("./Data/mild_anemia_prev_data.csv"),
-      vroom("./Data/moderate_anemia_prev_data.csv"),
-      vroom("./Data/severe_anemia_prev_data.csv")
+      vroom("./Data/mild_anemia_prev_data.csv", show_col_types = FALSE),
+      vroom("./Data/moderate_anemia_prev_data.csv", show_col_types = FALSE),
+      vroom("./Data/severe_anemia_prev_data.csv", show_col_types = FALSE)
     )) |>
       mutate(location_name = countryname(location_name)) |> # Standardise country names
       as_tibble() |>
@@ -43,9 +43,9 @@ rollup <- function(population) {
       )
   } else if (population == "total") { #Total population
     do.call(rbind, list(
-      vroom("./Data/mild_anemia_prev_data.csv"),
-      vroom("./Data/moderate_anemia_prev_data.csv"),
-      vroom("./Data/severe_anemia_prev_data.csv")
+      vroom("./Data/mild_anemia_prev_data.csv", show_col_types = FALSE),
+      vroom("./Data/moderate_anemia_prev_data.csv", show_col_types = FALSE),
+      vroom("./Data/severe_anemia_prev_data.csv", show_col_types = FALSE)
     )) |>
       mutate(location_name = countryname(location_name)) |> # Standardise country names
       as_tibble() |>

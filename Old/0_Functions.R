@@ -355,4 +355,3 @@ simulator <- function(country, year, pop_wra, pop_anaemic, malaria_weight, inter
 }
 
 
-#Function to extract YLDs from anaemic base rate data
