@@ -1,7 +1,7 @@
 # Functions to apply to GBD data
 # Populations argument can take "anaemic", "wra", and "total"
 rollup <- function(population) {
-  if (population == "anaemic") { #Anaemic women
+  if (population == "anaemic") { # Anaemic women
     do.call(rbind, list(
       vroom("./Data/mild_anemia_prev_data.csv", show_col_types = FALSE),
       vroom("./Data/moderate_anemia_prev_data.csv", show_col_types = FALSE),
@@ -13,13 +13,13 @@ rollup <- function(population) {
         sex == "Female", # Only include women
         age_group_id %in% agegroup, # Of reproductive age
         measure == "prevalence", # by prevalence
-        metric_name == "Number"# and get the total number
-      ) |> 
+        metric_name == "Number" # and get the total number
+      ) |>
       group_by(location_name, year_id, rei_name) |>
       summarise(Prevalence = ceiling(sum(val))) |> # Roll up rows into groups
       ungroup() |>
       select(location_name, year_id, rei_name, Prevalence)
-  } else if (population == "wra") { #Women of reproductive age
+  } else if (population == "wra") { # Women of reproductive age
     do.call(rbind, list(
       vroom("./Data/mild_anemia_prev_data.csv", show_col_types = FALSE),
       vroom("./Data/moderate_anemia_prev_data.csv", show_col_types = FALSE),
@@ -35,13 +35,14 @@ rollup <- function(population) {
       ) |>
       group_by(location_name, age_group_id, year_id) |>
       reframe( # Divide prevalence by rate to get estimate of total population by year
-        Prevalence = val[metric_name == "Number"] / val[metric_name == "Rate"]) |>
+        Prevalence = val[metric_name == "Number"] / val[metric_name == "Rate"]
+      ) |>
       ungroup() |>
       group_by(location_name, year_id) |>
       summarise( # Aggregate estimates across years
         Pop_wra = sum(Prevalence)
       )
-  } else if (population == "total") { #Total population
+  } else if (population == "total") { # Total population
     do.call(rbind, list(
       vroom("./Data/mild_anemia_prev_data.csv", show_col_types = FALSE),
       vroom("./Data/moderate_anemia_prev_data.csv", show_col_types = FALSE),
@@ -52,13 +53,24 @@ rollup <- function(population) {
       filter(
         rei_name == "Mild anemia",
         measure_name == "Prevalence"
-        ) |>
+      ) |>
       group_by(location_name, age_group_id, sex_id, year_id) |>
       summarise( # Divide prevalence by rate by year and sex for whole of population
-        Prev = val[metric_name == "Number"] / val[metric_name == "Rate"]) |>
+        Prev = val[metric_name == "Number"] / val[metric_name == "Rate"]
+      ) |>
       ungroup() |>
       group_by(location_name, year_id) |>
       summarise( # Aggregate estimates
-        Pop_total = sum(Prev))
+        Pop_total = sum(Prev)
+      )
   }
+}
+
+# Function to estimate impact of intervention
+# Assumes data is in format: location_name | year_id | rei_name | Prevalence | Pop_wra | Pop_total | Pop_pregnant
+# Pass rate and costs as vector of length niter
+# Pass population as one of c("Pop_wra", "Pop_total", "Pop_pregnant)
+
+simulator <- function(country, rate, cost, coverage_current, coverage_max, population, niter) {
+
 }

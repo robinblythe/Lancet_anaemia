@@ -60,13 +60,16 @@ run_sim_YLD <- function(country, interventionlist) {
 
   p +
     stat_summary(aes(x = Year, y = YLD), fun = median, geom = "path", linewidth = 1) +
-    stat_summary(aes(x = Year, y = YLD), 
-                 fun.min = function(YLD) quantile(YLD, 0.025), 
-                 fun.max = function(YLD) quantile(YLD, 0.975), 
-                 geom = "ribbon", alpha = 0.2) +
-    stat_summary(data = subset(sim_YLD, Year > 2020) |>
-                   mutate(YLD = ifelse(Year == 2021, YLD, YLD_post_2)),
-                 aes(x = Year, y = YLD), fun = median, geom = "path", linetype = "dashed", linewidth = 1.2) +
+    stat_summary(aes(x = Year, y = YLD),
+      fun.min = function(YLD) quantile(YLD, 0.025),
+      fun.max = function(YLD) quantile(YLD, 0.975),
+      geom = "ribbon", alpha = 0.2
+    ) +
+    stat_summary(
+      data = subset(sim_YLD, Year > 2020) |>
+        mutate(YLD = ifelse(Year == 2021, YLD, YLD_post_2)),
+      aes(x = Year, y = YLD), fun = median, geom = "path", linetype = "dashed", linewidth = 1.2
+    ) +
     theme_bw()
 }
 

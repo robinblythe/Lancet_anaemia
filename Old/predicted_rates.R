@@ -39,10 +39,12 @@ countries <- unique(df_raw$location_name)
 # Obtain total prevalence of all anaemia types for years 2000 to 2021 then use that to predict 2030 using linear extrapolation from smooth.spline
 # Currently omitting uncertainty - can be incorporated later by sampling from triangular dist (EnvStats::rtri())
 df1 <- df_raw |>
-  filter(sex == "Female",
-         age_group_id %in% agegroup,
-         measure == "prevalence",
-         metric_name == "Number") |>
+  filter(
+    sex == "Female",
+    age_group_id %in% agegroup,
+    measure == "prevalence",
+    metric_name == "Number"
+  ) |>
   group_by(location_name, year_id, rei_name) |>
   summarise(Prevalence = round(sum(val), digits = 0)) |>
   ungroup() |>
@@ -52,24 +54,35 @@ df1 <- df_raw |>
 preds <- list()
 
 for (i in 1:length(countries)) {
-  
-  preds$mild[[i]] <- tibble(location_name = countries[i],
-                            year_id = pred_year,
-                            rei_name = "Mild anemia",
-                            Prevalence = with(subset(df1, location_name == countries[i] & rei_name == "Mild anemia"),
-                                              predict(smooth.spline(x = year_id, y = Prevalence), x = pred_year)$y))
+  preds$mild[[i]] <- tibble(
+    location_name = countries[i],
+    year_id = pred_year,
+    rei_name = "Mild anemia",
+    Prevalence = with(
+      subset(df1, location_name == countries[i] & rei_name == "Mild anemia"),
+      predict(smooth.spline(x = year_id, y = Prevalence), x = pred_year)$y
+    )
+  )
 
-  preds$moderate[[i]] <- tibble(location_name = countries[i],
-                                year_id = pred_year,
-                                rei_name = "Moderate anemia",
-                                Prevalence = with(subset(df1, location_name == countries[i] & rei_name == "Moderate anemia"),
-                                                  predict(smooth.spline(x = year_id, y = Prevalence), x = pred_year)$y))
-  
-  preds$severe[[i]] <- tibble(location_name = countries[i],
-                              year_id = pred_year,
-                              rei_name = "Severe anemia",
-                              Prevalence = with(subset(df1, location_name == countries[i] & rei_name == "Severe anemia"),
-                                                predict(smooth.spline(x = year_id, y = Prevalence), x = pred_year)$y))
+  preds$moderate[[i]] <- tibble(
+    location_name = countries[i],
+    year_id = pred_year,
+    rei_name = "Moderate anemia",
+    Prevalence = with(
+      subset(df1, location_name == countries[i] & rei_name == "Moderate anemia"),
+      predict(smooth.spline(x = year_id, y = Prevalence), x = pred_year)$y
+    )
+  )
+
+  preds$severe[[i]] <- tibble(
+    location_name = countries[i],
+    year_id = pred_year,
+    rei_name = "Severe anemia",
+    Prevalence = with(
+      subset(df1, location_name == countries[i] & rei_name == "Severe anemia"),
+      predict(smooth.spline(x = year_id, y = Prevalence), x = pred_year)$y
+    )
+  )
 }
 
 # Combine tibbles
@@ -91,79 +104,91 @@ remove(df_preds, df1, agegroup)
 gc()
 
 df2 <- df_raw |>
-  filter(measure == "prevalence",
-         rei_name == "Mild anemia") |> #Only need mild for population estimates
+  filter(
+    measure == "prevalence",
+    rei_name == "Mild anemia"
+  ) |> # Only need mild for population estimates
   group_by(age_group_id, location_name, year_id, sex) |>
   summarise(Pop_by_age_sex = val[metric_name == "Number"] / val[metric_name == "Rate"]) |>
-  ungroup() 
+  ungroup()
 
-#Create inner and outer loop for each country and age group
+# Create inner and outer loop for each country and age group
 inner <- list()
 outer <- list()
 agegroup <- unique(df2$age_group_id)
 
 for (i in 1:length(countries)) {
-  
   for (j in 1:length(agegroup)) {
-    
-    inner$male[[agegroup[j]]] <- tibble(age_group_id = agegroup[j],
-                                        location_name = countries[i],
-                                        year_id = 2030,
-                                        sex = "Male",
-                                        Pop_by_age_sex = with(subset(df2, location_name == countries[i] & sex == "Male" & age_group_id == agegroup[j]),
-                                                              predict(smooth.spline(x = year_id, y = Pop_by_age_sex), x = 2030)$y))
+    inner$male[[agegroup[j]]] <- tibble(
+      age_group_id = agegroup[j],
+      location_name = countries[i],
+      year_id = 2030,
+      sex = "Male",
+      Pop_by_age_sex = with(
+        subset(df2, location_name == countries[i] & sex == "Male" & age_group_id == agegroup[j]),
+        predict(smooth.spline(x = year_id, y = Pop_by_age_sex), x = 2030)$y
+      )
+    )
 
-    inner$female[[agegroup[j]]] <- tibble(age_group_id = agegroup[j],
-                                          location_name = countries[i],
-                                          year_id = 2030,
-                                          sex = "Female",
-                                          Pop_by_age_sex = with(subset(df2, location_name == countries[i] & sex == "Female" & age_group_id == agegroup[j]),
-                                                                predict(smooth.spline(x = year_id, y = Pop_by_age_sex), x = 2030)$y))
+    inner$female[[agegroup[j]]] <- tibble(
+      age_group_id = agegroup[j],
+      location_name = countries[i],
+      year_id = 2030,
+      sex = "Female",
+      Pop_by_age_sex = with(
+        subset(df2, location_name == countries[i] & sex == "Female" & age_group_id == agegroup[j]),
+        predict(smooth.spline(x = year_id, y = Pop_by_age_sex), x = 2030)$y
+      )
+    )
   }
 
   outer[[i]] <- bind_rows(inner$male, inner$female)
 }
 
-df_preds <- bind_rows(outer) |> 
+df_preds <- bind_rows(outer) |>
   arrange(location_name, year_id, age_group_id, sex)
 remove(inner, outer, df2, i, j, agegroup)
 
-#Now multiply each age group by 2021 rate by anaemia type, age and gender
-df_rates <- df_raw |> 
-  filter(measure == "prevalence",
-         metric_name == "Rate",
-         year_id == 2021) |>
+# Now multiply each age group by 2021 rate by anaemia type, age and gender
+df_rates <- df_raw |>
+  filter(
+    measure == "prevalence",
+    metric_name == "Rate",
+    year_id == 2021
+  ) |>
   select(age_group_id, location_name, sex, rei_name, val) |>
-  pivot_wider(names_from = rei_name,
-              values_from = val)
+  pivot_wider(
+    names_from = rei_name,
+    values_from = val
+  )
 
 agegroup <- seq(8, 14, 1) # Women of reproductive age group
 
 df1 <- full_join(df_preds, df_rates) |>
-  mutate(Population_mild = Pop_by_age_sex * `Mild anemia`,
-         Population_moderate = Pop_by_age_sex * `Moderate anemia`,
-         Population_severe = Pop_by_age_sex * `Severe anemia`) |>
+  mutate(
+    Population_mild = Pop_by_age_sex * `Mild anemia`,
+    Population_moderate = Pop_by_age_sex * `Moderate anemia`,
+    Population_severe = Pop_by_age_sex * `Severe anemia`
+  ) |>
   select(-c(Pop_by_age_sex, `Mild anemia`, `Moderate anemia`, `Severe anemia`)) |>
-  filter(age_group_id %in% agegroup,
-         sex == "Female") |>
+  filter(
+    age_group_id %in% agegroup,
+    sex == "Female"
+  ) |>
   group_by(location_name, year_id) |>
-  summarise(`Mild anemia` = sum(Population_mild),
-            `Moderate anemia` = sum(Population_moderate),
-            `Severe anemia` = sum(Population_severe)) |>
-  pivot_longer(cols = c(`Mild anemia`, `Moderate anemia`, `Severe anemia`),
-               names_to = "rei_name",
-               values_to = "Prevalence") |>
+  summarise(
+    `Mild anemia` = sum(Population_mild),
+    `Moderate anemia` = sum(Population_moderate),
+    `Severe anemia` = sum(Population_severe)
+  ) |>
+  pivot_longer(
+    cols = c(`Mild anemia`, `Moderate anemia`, `Severe anemia`),
+    names_to = "rei_name",
+    values_to = "Prevalence"
+  ) |>
   mutate(Description = "Predicted_stable")
 
 df <- full_join(df0, df1) |>
   arrange(location_name, year_id, )
 
 write_delim(df, file = "./prevalence2030.csv")
-
-
-
-
-
-
-
-
