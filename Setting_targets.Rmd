@@ -1,13 +1,132 @@
 ---
-title: "Setting targets in global health"
+title: 'Setting targets in global health: Case study'
 ---
 
-Paper will have league tables by region - region as facets on the Y-axis (vertical), and cost/DALY on the X-axis (horizontal) with a dashed line for each facet denoting the regional WTP
+This markdown file describes the analysis plan for the secondary target setting paper.  
+The paper will essentially show how target setting can be done using league tables of viable interventions, with a country's cost per YLD averted. This will prioritise an intervention to be done first up to the maximum viable coverage, then remove it from the list and repeat the league table exercise until all interventions are applied, costs are too high, or cost-effectiveness is unlikely.  
 
-Shiny app has the league tables by country (too much to fit into one)
+The initial idea was league tables by region, with regions as facets on the Y-axis (vertical), and cost/DALY on the X-axis (horizontal) with a dashed line for each facet denoting the regional WTP and a density plot for each distribution of cost/YLD by simulation. However, for the initial test, we will just use a single country.
 
-For the main analysis - we have historic prevalence, projected rates in 2030 (by region)
+```{r, message = FALSE, warning = FALSE}
+gc()
+options(scipen = 999, digits = 5)
 
-2030 rate of anaemia: 
-- option 1 is just a spline extrapolation from last knot (based on current trends)
-- option 2 is to take the last date we have coverage data for, then get the rate of anaemia at that time and multiply it by the predicted population in 2030
+library(tidyverse)
+library(vroom)
+library(countrycode)
+library(EnvStats)
+library(zoo)
+
+# Select the sample country
+country <- "Armenia"
+
+# Read in 2030 population estimates
+df_2030 <- readRDS("./Data/est_2030.rds") |>
+  filter(location_name == country)
+
+# Assuming 10,000 iterations
+iter <- 10000
+
+# Read in costs, interventions, coverage and filter by country
+source("./1_Interventions.R")
+df_coverage <- df_coverage |>
+  filter(location_name == country)
+
+# Maximum possible coverage is 100% in this example
+coverage_max <- 1
+
+# YLDs saved:
+YLD_mild <- 0.005
+YLD_moderate <- 0.053
+YLD_severe <- 0.150
+```
+
+There are 9 interventions we will consider in this list:  
+```{r}
+# List of interventions
+interventions <- c(
+  "DailyIron_Preg", # Daily iron and folic acid supplementation in pregnant women
+  "DailyIron_WRA", # Daily iron supplementation in WRA
+  "Deworm", # Deworming tablets in WRA
+  "Staple", # Staple food supplementation in all individuals
+  "ITN", # Insecticide treated bednets in pregnant women
+  "IntIron_Preg", # Intermittent iron and folic acid supplementation in pregnant women
+  "IntIron_WRA", # Intermittent iron supplementation in WRA
+  "Antimalarial", # Antenatal intermittent antimalarials
+  "MMS" # Micronutrient supplements in pregnant women
+)
+```
+
+The basic structure of the league table idea is as follows:  
+- Obtain the cost of each intervention per person and multiply by the increase in eligible population (e.g., pregnant women not currently receiving the intervention)  
+- Obtain the effectiveness (RR) of each intervention, enter that into the following formula with given current and maximum coverage:  
+$$
+\theta = \frac{1 - c_{max}(1 - RR_1)}{1 - c_{current}(1 - RR_0)}
+$$
+- Now multiply theta by the target population (e.g. pregnant anaemic women) of each type of anaemia: mild, moderate, and severe, and obtain the YLD for each type
+- Divide costs by YLD and sort ascending  
+- Pick the top option and then remove that intervention from the list  
+- Repeat  
+
+```{r, warning = FALSE}
+# Call in functions
+source("./99_Functions.R")
+
+# Run the simulator function for each intervention
+sims <- list(
+  simulator(df_2030, country, interventions[[1]], "Pop_pregnant", "Pop_pregnant_anaemic"), # Daily iron + FA in pregnant women
+  simulator(df_2030, country, interventions[[2]], "Pop_wra", "Pop_anaemic"), # Daily Iron in WRA
+  simulator(df_2030, country, interventions[[3]], "Pop_wra", "Pop_anaemic"), # Deworming tablets in WRA
+  simulator(df_2030, country, interventions[[4]], "Pop_total", "Pop_anaemic") # Staple food supplementation for all
+)
+
+stage1 <- do.call(rbind, sims) |>
+  group_by(Intervention) |>
+  summarise(Cost_per_YLD = mean(Cost_per_YLD)) |>
+  arrange(Cost_per_YLD)
+stage1
+```
+
+This demonstrates that staple food supplementation may be the most cost-effective method. If we repeat the analysis now with staple removed, that requires us to modify the prevalence data first:
+
+```{r}
+df_post1 <- df_2030 |>
+  mutate(
+    Pop_pregnant_anaemic =
+      Pop_pregnant_anaemic *
+        (1 - coverage_max * (1 - mean(intervention_list$Staple))) /
+        (1 - df_coverage$Staple * (1 - mean(intervention_list$Staple))),
+    Pop_anaemic =
+      Pop_anaemic *
+        (1 - coverage_max * (1 - mean(intervention_list$Staple))) /
+        (1 - df_coverage$Staple * (1 - mean(intervention_list$Staple)))
+  ) |>
+  mutate(
+    YLD =
+      case_when(
+        rei_name == "Mild anemia" ~ Pop_anaemic * 0.005,
+        rei_name == "Moderate anemia" ~ Pop_anaemic * 0.053,
+        rei_name == "Severe anemia" ~ Pop_anaemic * 0.150
+      )
+  )
+
+df_post1
+```
+
+After which we can simply repeat the simulator without staple foods on the new data:
+```{r, warning = FALSE}
+# Call in functions
+# Run the simulator function for each intervention
+sims <- list(
+  simulator(df_post1, country, interventions[[1]], "Pop_pregnant", "Pop_pregnant_anaemic"), # Daily iron + FA in pregnant women
+  simulator(df_post1, country, interventions[[2]], "Pop_wra", "Pop_anaemic"), # Daily Iron in WRA
+  simulator(df_post1, country, interventions[[3]], "Pop_wra", "Pop_anaemic") # Deworming tablets in WRA
+)
+
+stage2 <- do.call(rbind, sims) |>
+  group_by(Intervention) |>
+  summarise(Cost_per_YLD = mean(Cost_per_YLD)) |>
+  arrange(Cost_per_YLD)
+stage2
+```
+

@@ -1,4 +1,5 @@
 # Load interventions based on Sumie and Tori's data
+# Qualify interventions by current coverage
 
 # Costs
 df_costs <- vroom("./Data/est_costs.csv", show_col_types = FALSE)
@@ -15,21 +16,48 @@ df_costs <- df_costs |>
   ungroup() |>
   filter(location_name %in% df_2030$location_name)
 
-df_costs_regional <- df_costs |>
-  select(-c(location_name, Code, IncomeGroup)) |>
-  group_by(Region) |>
-  summarise_all(mean)
+# Quick fix - Staple currently doesn't have high or low estimates
+df_costs$Staple_Low <- df_costs$Staple_Base - 0.01
+df_costs$Staple_High <- df_costs$Staple_Base + 0.01
+
+
+# df_costs_regional <- df_costs |>
+#   select(-c(location_name, Code, IncomeGroup)) |>
+#   group_by(Region) |>
+#   summarise_all(mean)
 
 # Effectiveness
 # Method of moments transformations applied where roughly symmetrical using https://aushsi.shinyapps.io/ShinyPrior/
 intervention_list <- list(
-  DailyIron_Preg <- rbeta(iter, shape1 = 11.468, shape2 = 19.786),
-  DailyIron_WRA <- rbeta(iter, shape1 = 12.198, shape2 = 16.861),
-  Deworm <- rnorm(iter, mean = 0.855, sd = 0.130),
-  Staple <- rnorm(iter, mean = 0.755, sd = 0.110),
-  ITN <- rnorm(iter, mean = 1.075, sd = 0.227),
-  IntIron_Preg <- rnorm(iter, mean = 1.320, sd = 0.245) * DailyIron_Preg,
-  IntIron_WRA <- rbeta(iter, shape1 = 14.525, shape2 = 6.285),
-  Antimalarial <- rbeta(iter, shape1 = 337.799, shape2 = 36.688),
-  MMS <- rnorm(iter, mean = 1.035, sd = 0.059) * DailyIron_WRA
+  DailyIron_Preg = rbeta(iter, shape1 = 11.468, shape2 = 19.786),
+  DailyIron_WRA = rbeta(iter, shape1 = 12.198, shape2 = 16.861),
+  Deworm = rnorm(iter, mean = 0.855, sd = 0.130),
+  Staple = rnorm(iter, mean = 0.755, sd = 0.110),
+  ITN = rnorm(iter, mean = 1.075, sd = 0.227),
+  IntIron_WRA = rbeta(iter, shape1 = 14.525, shape2 = 6.285),
+  Antimalarial = rbeta(iter, shape1 = 337.799, shape2 = 36.688)
 )
+intervention_list[["IntIron_Preg"]] <- rnorm(iter, mean = 1.320, sd = 0.245) * intervention_list$DailyIron_Preg
+intervention_list[["MMS"]] <- rnorm(iter, mean = 1.035, sd = 0.059) * intervention_list$DailyIron_WRA
+
+
+# Intervention coverage
+df_coverage <- vroom("./Data/all_coverage_data.csv", show_col_types = FALSE) |>
+  na.omit() |>
+  suppressMessages()
+Encoding(df_coverage$`Country/Economy`) <- "UTF-8"
+df_coverage$`Country/Economy` <- iconv(df_coverage$`Country/Economy`, "UTF-8", "UTF-8", sub = "")
+df_coverage$`Country/Economy`[df_coverage$`Country/Economy` == "Curaao"] <- "Curacao"
+
+df_coverage <- df_coverage |>
+  mutate(location_name = countryname(`Country/Economy`)) |>
+  group_by(location_name) |>
+  mutate(
+    Staple = max(c(Staple_wheat, Staple_rice, Staple_maize)),
+    DailyIron_Preg = DailyIron,
+    DailyIron_WRA = DailyIron
+  ) |>
+  select(
+    location_name, DailyIron_Preg, DailyIron_WRA, Deworm, Staple, ITN, Antimalarial
+  ) |>
+  ungroup()

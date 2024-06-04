@@ -130,6 +130,36 @@ df_analysis <- left_join(
   ) |>
   select(-c(Pr_pregnant, Prevalence))
 
-remove(gbd, preds, i, pregnancy, agegroup, countries, pred_year, rollup)
+# Treatment fraction: Malarial status (pregnant women only)
+# Where country is excluded, assume rate == 0
+malaria <- vroom("./Data/malaria_data.csv", show_col_types = FALSE) |>
+  filter(
+    Metric == "Incidence Rate",
+    Year == 2020
+  ) |>
+  mutate(
+    Pct_malarial = Value / 1000,
+    location_name = countryname(Name)
+  ) |>
+  select(location_name, Pct_malarial)
 
-saveRDS(df_analysis, file = "./Data/est_2030.rds")
+df_2030 <- left_join(df_analysis, malaria) |>
+  mutate(Pop_pregnant_malaria = ceiling(Pop_pregnant * Pct_malarial)) |>
+  mutate(Pop_pregnant_malaria = ifelse(is.na(Pop_pregnant_malaria), 0, Pop_pregnant_malaria)) |>
+  select(-Pct_malarial) |>
+  relocate(Pop_pregnant_malaria, .before = Pop_pregnant_anaemic) |>
+  mutate(YLD = case_when(
+    rei_name == "Mild anemia" ~ Pop_anaemic * 0.005,
+    rei_name == "Moderate anemia" ~ Pop_anaemic * 0.053,
+    rei_name == "Severe anemia" ~ Pop_anaemic * 0.150
+  ))
+
+# YLDs per person:
+# Mild anaemia == 0.005
+# Moderate anaemia == 0.053
+# Severe anaemia == 0.150
+
+
+remove(gbd, preds, i, pregnancy, agegroup, countries, malaria, pred_year, rollup, df_analysis)
+
+saveRDS(df_2030, file = "./Data/est_2030.rds")

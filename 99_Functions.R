@@ -66,11 +66,36 @@ rollup <- function(population) {
   }
 }
 
-# Function to estimate impact of intervention
-# Assumes data is in format: location_name | year_id | rei_name | Prevalence | Pop_wra | Pop_total | Pop_pregnant
-# Pass rate and costs as vector of length niter
-# Pass population as one of c("Pop_wra", "Pop_total", "Pop_pregnant)
+# Population calls must be in quotes
+simulator <- function(prev_data, country, intervention, Pop_eligible, Pop_targeted) {
+  df <- tibble(
+    location_name = country,
+    Intervention = intervention,
+    Cost =
+      rtri(iter,
+        min = df_costs[[paste0(intervention, "_Low")]],
+        max = df_costs[[paste0(intervention, "_High")]],
+        mode = df_costs[[paste0(intervention, "_Base")]]
+      ) *
+        df_2030[[Pop_eligible]] *
+        (coverage_max - df_coverage[[intervention]]),
+    Eff =
+      prev_data[[Pop_targeted]][prev_data$rei_name == "Mild anemia"] *
+        (1 - coverage_max * (1 - intervention_list[[intervention]])) /
+        (1 - df_coverage[[intervention]] * (1 - intervention_list[[intervention]])) *
+        YLD_mild +
 
-simulator <- function(country, rate, cost, coverage_current, coverage_max, population, niter) {
+        prev_data[[Pop_targeted]][prev_data$rei_name == "Moderate anemia"] *
+          (1 - coverage_max * (1 - intervention_list[[intervention]])) /
+          (1 - df_coverage[[intervention]] * (1 - intervention_list[[intervention]])) *
+          YLD_moderate +
 
+        prev_data[[Pop_targeted]][prev_data$rei_name == "Severe anemia"] *
+          (1 - coverage_max * (1 - intervention_list[[intervention]])) /
+          (1 - df_coverage[[intervention]] * (1 - intervention_list[[intervention]])) *
+          YLD_severe
+  ) |>
+    mutate(
+      Cost_per_YLD = Cost / Eff
+    )
 }
