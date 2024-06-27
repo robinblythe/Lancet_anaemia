@@ -67,10 +67,13 @@ rollup <- function(population) {
 }
 
 # Population calls must be in quotes
+# Try making this empirical instead - simulate the impact of each intervention rather than just use cost / eff
 simulator <- function(prev_data, country, intervention, Pop_eligible, Pop_targeted) {
   df <- tibble(
     location_name = country,
+    
     Intervention = intervention,
+    
     Cost =
       rtri(iter,
         min = df_costs[[paste0(intervention, "_Low")]],
@@ -79,6 +82,7 @@ simulator <- function(prev_data, country, intervention, Pop_eligible, Pop_target
       ) *
         df_2030[[Pop_eligible]] *
         (coverage_max - df_coverage[[intervention]]),
+    
     Eff =
       prev_data[[Pop_targeted]][prev_data$rei_name == "Mild anemia"] *
         (1 - coverage_max * (1 - intervention_list[[intervention]])) /

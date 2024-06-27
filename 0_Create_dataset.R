@@ -53,82 +53,96 @@ pregnancy <- inner_join(fert, still) |>
 remove(fert, still)
 
 # Extract countries list for predictions
-countries <- intersect(gbd$location_name, pregnancy$location_name)
+# countries <- intersect(gbd$location_name, pregnancy$location_name)
 
-# Predict 2030 anaemia rates based on existing prevalence using smoothing splines
-preds <- list()
-
-for (i in 1:length(countries)) {
-  preds$mild[[i]] <- tibble(
-    location_name = countries[i],
-    year_id = pred_year,
-    rei_name = "Mild anemia",
-    Prevalence = with(
-      subset(gbd, location_name == countries[i] & rei_name == "Mild anemia"),
-      predict(smooth.spline(x = year_id, y = Prevalence), x = pred_year)$y
-    )
-  )
-
-  preds$moderate[[i]] <- tibble(
-    location_name = countries[i],
-    year_id = pred_year,
-    rei_name = "Moderate anemia",
-    Prevalence = with(
-      subset(gbd, location_name == countries[i] & rei_name == "Moderate anemia"),
-      predict(smooth.spline(x = year_id, y = Prevalence), x = pred_year)$y
-    )
-  )
-
-  preds$severe[[i]] <- tibble(
-    location_name = countries[i],
-    year_id = pred_year,
-    rei_name = "Severe anemia",
-    Prevalence = with(
-      subset(gbd, location_name == countries[i] & rei_name == "Severe anemia"),
-      predict(smooth.spline(x = year_id, y = Prevalence), x = pred_year)$y
-    )
-  )
-
-  preds$wra[[i]] <- tibble(
-    location_name = countries[i],
-    year_id = pred_year,
-    Pop_wra = with(
-      subset(gbd, location_name == countries[i] & rei_name == "Severe anemia"),
-      predict(smooth.spline(x = year_id, y = Pop_wra), x = pred_year)$y
-    )
-  )
-
-  preds$total[[i]] <- tibble(
-    location_name = countries[i],
-    year_id = pred_year,
-    Pop_total = with(
-      subset(gbd, location_name == countries[i] & rei_name == "Severe anemia"),
-      predict(smooth.spline(x = year_id, y = Pop_total), x = pred_year)$y
-    )
-  )
-}
-
-# Roll up predictions into 2030 dataset
-df_analysis <- bind_rows(preds) |>
-  group_by(location_name) |>
-  arrange(location_name, rei_name) |>
-  fill(Pop_wra, .direction = "up") |>
-  fill(Pop_total, .direction = "up") |>
-  na.omit()
+# Predict 2030 anaemia rates based on existing prevalence using smoothing splines - if we want to use them
+# preds <- list()
+# 
+# for (i in 1:length(countries)) {
+#   preds$mild[[i]] <- tibble(
+#     location_name = countries[i],
+#     year_id = pred_year,
+#     rei_name = "Mild anemia",
+#     Prevalence = with(
+#       subset(gbd, location_name == countries[i] & rei_name == "Mild anemia"),
+#       predict(smooth.spline(x = year_id, y = Prevalence), x = pred_year)$y
+#     )
+#   )
+# 
+#   preds$moderate[[i]] <- tibble(
+#     location_name = countries[i],
+#     year_id = pred_year,
+#     rei_name = "Moderate anemia",
+#     Prevalence = with(
+#       subset(gbd, location_name == countries[i] & rei_name == "Moderate anemia"),
+#       predict(smooth.spline(x = year_id, y = Prevalence), x = pred_year)$y
+#     )
+#   )
+# 
+#   preds$severe[[i]] <- tibble(
+#     location_name = countries[i],
+#     year_id = pred_year,
+#     rei_name = "Severe anemia",
+#     Prevalence = with(
+#       subset(gbd, location_name == countries[i] & rei_name == "Severe anemia"),
+#       predict(smooth.spline(x = year_id, y = Prevalence), x = pred_year)$y
+#     )
+#   )
+# 
+#   preds$wra[[i]] <- tibble(
+#     location_name = countries[i],
+#     year_id = pred_year,
+#     Pop_wra = with(
+#       subset(gbd, location_name == countries[i] & rei_name == "Severe anemia"),
+#       predict(smooth.spline(x = year_id, y = Pop_wra), x = pred_year)$y
+#     )
+#   )
+# 
+#   preds$total[[i]] <- tibble(
+#     location_name = countries[i],
+#     year_id = pred_year,
+#     Pop_total = with(
+#       subset(gbd, location_name == countries[i] & rei_name == "Severe anemia"),
+#       predict(smooth.spline(x = year_id, y = Pop_total), x = pred_year)$y
+#     )
+#   )
+# }
+# 
+# # Roll up predictions into 2030 dataset
+# df_analysis <- bind_rows(preds) |>
+#   group_by(location_name) |>
+#   arrange(location_name, rei_name) |>
+#   fill(Pop_wra, .direction = "up") |>
+#   fill(Pop_total, .direction = "up") |>
+#   na.omit()
 
 # Add pregnancy rates from 2021 - spline prediction is too unreliable due to sharp declines
-df_analysis <- left_join(
-  df_analysis,
-  pregnancy |>
+# df_analysis <- left_join(
+#   df_analysis,
+#   pregnancy |>
+#     filter(year_id == 2021) |>
+#     select(-year_id)
+# ) |>
+#   mutate(
+#     Pop_pregnant = ceiling(Pr_pregnant * Pop_wra),
+#     Pop_pregnant_anaemic = ceiling(Pr_pregnant * Prevalence),
+#     Pop_anaemic = ceiling(Prevalence)
+#   ) |>
+#   select(-c(Pr_pregnant, Prevalence))
+
+
+# If using 2021 data, just start from here:
+df_analysis <- left_join(gbd, pregnancy) |>
     filter(year_id == 2021) |>
-    select(-year_id)
-) |>
+    select(-year_id) |>
   mutate(
     Pop_pregnant = ceiling(Pr_pregnant * Pop_wra),
     Pop_pregnant_anaemic = ceiling(Pr_pregnant * Prevalence),
     Pop_anaemic = ceiling(Prevalence)
   ) |>
-  select(-c(Pr_pregnant, Prevalence))
+  select(-c(Pr_pregnant, Prevalence)) |>
+  na.omit()
+
 
 # Treatment fraction: Malarial status (pregnant women only)
 # Where country is excluded, assume rate == 0
@@ -143,23 +157,29 @@ malaria <- vroom("./Data/malaria_data.csv", show_col_types = FALSE) |>
   ) |>
   select(location_name, Pct_malarial)
 
-df_2030 <- left_join(df_analysis, malaria) |>
-  mutate(Pop_pregnant_malaria = ceiling(Pop_pregnant * Pct_malarial)) |>
-  mutate(Pop_pregnant_malaria = ifelse(is.na(Pop_pregnant_malaria), 0, Pop_pregnant_malaria)) |>
-  select(-Pct_malarial) |>
-  relocate(Pop_pregnant_malaria, .before = Pop_pregnant_anaemic) |>
-  mutate(YLD = case_when(
-    rei_name == "Mild anemia" ~ Pop_anaemic * 0.005,
-    rei_name == "Moderate anemia" ~ Pop_anaemic * 0.053,
-    rei_name == "Severe anemia" ~ Pop_anaemic * 0.150
-  ))
-
 # YLDs per person:
 # Mild anaemia == 0.005
 # Moderate anaemia == 0.053
 # Severe anaemia == 0.150
 
+df_2030 <- left_join(df_analysis, malaria) |>
+  mutate(Pop_pregnant_malaria_anaemic = ceiling(Pop_pregnant_anaemic * Pct_malarial)) |>
+  mutate(Pop_pregnant_malaria_anaemic = ifelse(is.na(Pop_pregnant_malaria_anaemic), 0, Pop_pregnant_malaria_anaemic)) |>
+  select(-Pct_malarial) |>
+  relocate(Pop_pregnant_malaria_anaemic, .before = Pop_anaemic) |>
+  mutate(YLD = case_when(
+    rei_name == "Mild anemia" ~ Pop_anaemic * 0.005,
+    rei_name == "Moderate anemia" ~ Pop_anaemic * 0.053,
+    rei_name == "Severe anemia" ~ Pop_anaemic * 0.150
+  )) |>
+  group_by(location_name) |>
+  mutate(Anaemia_rate = sum(Pop_anaemic)/max(Pop_wra)) |>
+  relocate(Anaemia_rate, .before = Pop_wra) |>
+  ungroup()
 
-remove(gbd, preds, i, pregnancy, agegroup, countries, malaria, pred_year, rollup, df_analysis)
+
+
+remove(gbd, preds, i, pregnancy, agegroup, countries, malaria, pred_year, rollup, df_analysis) |>
+  suppressWarnings()
 
 saveRDS(df_2030, file = "./Data/est_2030.rds")

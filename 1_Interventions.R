@@ -21,24 +21,16 @@ df_costs$Staple_Low <- df_costs$Staple_Base - 0.01
 df_costs$Staple_High <- df_costs$Staple_Base + 0.01
 
 
-# df_costs_regional <- df_costs |>
-#   select(-c(location_name, Code, IncomeGroup)) |>
-#   group_by(Region) |>
-#   summarise_all(mean)
-
 # Effectiveness
 # Method of moments transformations applied where roughly symmetrical using https://aushsi.shinyapps.io/ShinyPrior/
 intervention_list <- list(
   DailyIron_Preg = rbeta(iter, shape1 = 11.468, shape2 = 19.786),
   DailyIron_WRA = rbeta(iter, shape1 = 12.198, shape2 = 16.861),
-  Deworm = rnorm(iter, mean = 0.855, sd = 0.130),
   Staple = rnorm(iter, mean = 0.755, sd = 0.110),
-  ITN = rnorm(iter, mean = 1.075, sd = 0.227),
   IntIron_WRA = rbeta(iter, shape1 = 14.525, shape2 = 6.285),
   Antimalarial = rbeta(iter, shape1 = 337.799, shape2 = 36.688)
 )
 intervention_list[["IntIron_Preg"]] <- rnorm(iter, mean = 1.320, sd = 0.245) * intervention_list$DailyIron_Preg
-intervention_list[["MMS"]] <- rnorm(iter, mean = 1.035, sd = 0.059) * intervention_list$DailyIron_WRA
 
 
 # Intervention coverage
@@ -58,6 +50,6 @@ df_coverage <- df_coverage |>
     DailyIron_WRA = DailyIron
   ) |>
   select(
-    location_name, DailyIron_Preg, DailyIron_WRA, Deworm, Staple, ITN, Antimalarial
+    location_name, DailyIron_Preg, DailyIron_WRA, Staple, Antimalarial
   ) |>
   ungroup()

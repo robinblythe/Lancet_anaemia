@@ -27,6 +27,9 @@ df_2030 <- readRDS("./Data/est_2030.rds") |>
 # Assuming 10,000 iterations
 iter <- 10000
 
+# And a WTP threshold of $10000 (just chose a random number)
+WTP <- 10000
+
 # Read in costs, interventions, coverage and filter by country
 source("./1_Interventions.R")
 df_coverage <- df_coverage |>
@@ -41,19 +44,16 @@ YLD_moderate <- 0.053
 YLD_severe <- 0.150
 ```
 
-There are 9 interventions we will consider in this list:  
+There are 6 interventions we will consider in this list:  
 ```{r}
 # List of interventions
 interventions <- c(
   "DailyIron_Preg", # Daily iron and folic acid supplementation in pregnant women
   "DailyIron_WRA", # Daily iron supplementation in WRA
-  "Deworm", # Deworming tablets in WRA
   "Staple", # Staple food supplementation in all individuals
-  "ITN", # Insecticide treated bednets in pregnant women
   "IntIron_Preg", # Intermittent iron and folic acid supplementation in pregnant women
   "IntIron_WRA", # Intermittent iron supplementation in WRA
-  "Antimalarial", # Antenatal intermittent antimalarials
-  "MMS" # Micronutrient supplements in pregnant women
+  "Antimalarial" # Antenatal intermittent antimalarials
 )
 ```
 
@@ -72,12 +72,15 @@ $$
 # Call in functions
 source("./99_Functions.R")
 
-# Run the simulator function for each intervention
+# Run the simulator function for each intervention:
+# Simulator takes prevalence data, country, intervention name, eligible population (for costs) and targeted population (for effects)
 sims <- list(
   simulator(df_2030, country, interventions[[1]], "Pop_pregnant", "Pop_pregnant_anaemic"), # Daily iron + FA in pregnant women
   simulator(df_2030, country, interventions[[2]], "Pop_wra", "Pop_anaemic"), # Daily Iron in WRA
-  simulator(df_2030, country, interventions[[3]], "Pop_wra", "Pop_anaemic"), # Deworming tablets in WRA
-  simulator(df_2030, country, interventions[[4]], "Pop_total", "Pop_anaemic") # Staple food supplementation for all
+  simulator(df_2030, country, interventions[[3]], "Pop_total", "Pop_anaemic"), # Staple food supplementation for all
+  simulator(df_2030, country, interventions[[4]], "Pop_pregnant", "Pop_pregnant_anaemic"), # Intermittent iron + FA for pregnant women
+  simulator(df_2030, country, interventions[[5]], "Pop_wra", "Pop_anaemic"), # Intermittent iron in WRA
+  simulator(df_2030, country, interventions[[6]], "Pop_pregnant", "Pop_pregnant_malaria_anaemic") # Antimalarials in pregnant women
 )
 
 stage1 <- do.call(rbind, sims) |>
@@ -90,6 +93,7 @@ stage1
 This demonstrates that staple food supplementation may be the most cost-effective method. If we repeat the analysis now with staple removed, that requires us to modify the prevalence data first:
 
 ```{r}
+# Try to automate this process without the specific function calls (replace the $ list calls and use [[]])
 df_post1 <- df_2030 |>
   mutate(
     Pop_pregnant_anaemic =
