@@ -7,15 +7,14 @@ The paper will essentially show how target setting can be done using league tabl
 
 The visualisation plan is for league tables by region, with regions as facets on the Y-axis (vertical), and cost/DALY on the X-axis (horizontal) with a dashed line for each facet denoting the regional WTP and a density plot for each distribution of cost/YLD by simulation.
 
-```{r, message = FALSE, warning = FALSE}
-gc()
+```{r, echo = FALSE, message = FALSE, warning = FALSE, include = FALSE}
 options(scipen = 999, digits = 5)
 
-library(tidyverse)
 library(vroom)
 library(countrycode)
 library(EnvStats)
 library(zoo)
+library(tidyverse)
 
 source("./99_Functions.R")
 
@@ -34,8 +33,8 @@ WTP <- 10000
 # Read in costs, interventions, coverage and filter by country
 source("./1_Interventions.R")
 
-# Maximum possible coverage is 100% in this example
-coverage_max <- 1
+# Maximum possible coverage is 90% in this example
+coverage_max <- 0.9
 
 # YLDs saved:
 YLD_mild <- 0.005
@@ -45,7 +44,7 @@ YLD_severe <- 0.150
 
 There are 6 interventions we will consider in this list:  
 ```{r}
-# List of interventions
+# List of interventions:
 interventions <- c(
   "DailyIron_Preg", # Daily iron and folic acid supplementation in pregnant women
   "DailyIron_WRA", # Daily iron supplementation in WRA
@@ -68,12 +67,13 @@ $$
 - Repeat
 
 ```{r}
-# First 131 countries works - just do top 10 for now to make code work
-countrylist <- countrylist[c(1:10)]
+# First 131 countries works - just do top 20 for now to make code work
+countrylist <- countrylist[c(1:20)]
 ```
 
+First we need to do the initial setup. We create a league table for each country, ranking the 6 interventions by cost/YLD:
 
-```{r, warning = FALSE}
+```{r, warning = FALSE, message = FALSE}
 # Run the simulator function for each intervention:
 # Simulator takes prevalence data, country, intervention name, eligible population (for costs) and targeted population (for effects)
 
@@ -84,17 +84,17 @@ for (i in 1:length(countrylist)) {
 
   sims <- list(
     # Daily iron + FA in pregnant women
-    simulator(df_2030, country, interventions[[1]], "Pop_pregnant", "Pop_pregnant_anaemic"),
+    simulator(df_2030, country, interventions[[1]]),
     # Daily Iron in WRA
-    simulator(df_2030, country, interventions[[2]], "Pop_wra", "Pop_anaemic"),
+    simulator(df_2030, country, interventions[[2]]),
     # Staple food supplementation for all
-    simulator(df_2030, country, interventions[[3]], "Pop_total", "Pop_anaemic"),
+    simulator(df_2030, country, interventions[[3]]),
     # Intermittent iron + FA for pregnant women
-    simulator(df_2030, country, interventions[[4]], "Pop_pregnant", "Pop_pregnant_anaemic"),
+    simulator(df_2030, country, interventions[[4]]),
     # Intermittent iron in WRA
-    simulator(df_2030, country, interventions[[5]], "Pop_wra", "Pop_anaemic"),
+    simulator(df_2030, country, interventions[[5]]),
     # Antimalarials in pregnant women
-    simulator(df_2030, country, interventions[[6]], "Pop_pregnant", "Pop_pregnant_malaria_anaemic")
+    simulator(df_2030, country, interventions[[6]])
   )
 
   stage0[[i]] <- do.call(rbind, sims) |>
@@ -103,72 +103,161 @@ for (i in 1:length(countrylist)) {
     mutate(Country = country) |>
     relocate(Country, .before = Intervention) |>
     arrange(Cost_per_YLD)
-
-  paste0(country, " done")
 }
 
-cea_0 <- do.call(rbind, stage0)
+cea <- do.call(rbind, stage0)
 remove(stage0, sims)
 ```
 
-This demonstrates which intervention is the most cost-effective for a given country. Now we can extract the top row for each country and feed this intervention into a loop over every country.
+This demonstrates which intervention is the most cost-effective for a given country. The purpose of a league table is to identify what a decision-maker should rationally implement first.
+
+Now we can extract the top row for each country and feed this intervention into a loop over every country, provided the proposed intervention is cost-effective.
 
 ```{r}
-# Identify intervention 1
-int1 <- cea_0 |>
+# Identify intervention 1 for each country
+int1 <- cea |>
+  filter(Cost_per_YLD <= WTP) |>
+  group_by(Country) |>
+  slice(1)
+
+# Apply intervention 1 to each country if cost-effective using applicator function
+# Applicator function takes the above intervention table and extracts the intervention, then applies it to the baseline data provided
+df_stage1 <- apply_intervention(base_data = df_2030, cea_table = int1)
+
+```
+
+Now we can obtain an updated league table, LESS the applied intervention:
+
+Wait - should it really be df_2030? No.
+
+```{r, warning = FALSE}
+cea0_1 <- cea |>
+  group_by(Country) |>
+  slice(-1) |>
+  select(, 1:2)
+
+stage1 <- list()
+for (i in 1:length(countrylist)) {
+  country <- countrylist[i]
+
+  sims <- list(
+    # Intervention 1
+    simulator(df_2030, country, cea0_1$Intervention[cea0_1$Country == country][1]),
+    # Intervention 2
+    simulator(df_2030, country, cea0_1$Intervention[cea0_1$Country == country][2]),
+    # Intervention 3
+    simulator(df_2030, country, cea0_1$Intervention[cea0_1$Country == country][3])
+  ) # Add interventions 4 and 5 when intermittent iron is available
+
+  stage1[[i]] <- do.call(rbind, sims) |>
+    group_by(Intervention) |>
+    summarise(Cost_per_YLD = mean(Cost_per_YLD)) |>
+    mutate(Country = country) |>
+    relocate(Country, .before = Intervention) |>
+    arrange(Cost_per_YLD)
+}
+
+cea1 <- do.call(rbind, stage1)
+remove(stage1, sims, cea0_1)
+```
+
+For most countries, daily iron for either pregnant or all women of reproductive age appears the most cost-effective option.
+We can now apply this intervention across countries.
+
+
+```{r}
+# Identify intervention 2
+int2 <- cea1 |>
+  filter(Cost_per_YLD <= WTP) |>
+  group_by(Country) |>
+  slice(1)
+
+# Apply intervention 2 to each country
+df_stage1 <- apply_intervention(base_data = df_2030, cea_table = int1)
+
+```
+
+Looks like we might get there after all. After 2 interventions, our CEA looks like this:
+
+```{r, warning = FALSE}
+cea1_2 <- cea1 |>
+  group_by(Country) |>
+  slice(-1) |>
+  select(, 1:2)
+
+stage2 <- list()
+for (i in 1:length(countrylist)) {
+  country <- countrylist[i]
+
+  sims <- list(
+    # Intervention 1
+    simulator(df_2030, country, cea1_2$Intervention[cea1_2$Country == country][1]),
+    # Intervention 2
+    simulator(df_2030, country, cea1_2$Intervention[cea1_2$Country == country][2])
+  ) # Add interventions 3 and 4 when intermittent iron is available
+
+  stage2[[i]] <- do.call(rbind, sims) |>
+    group_by(Intervention) |>
+    summarise(Cost_per_YLD = mean(Cost_per_YLD)) |>
+    mutate(Country = country) |>
+    relocate(Country, .before = Intervention) |>
+    arrange(Cost_per_YLD)
+}
+
+cea2 <- do.call(rbind, stage2)
+remove(stage2, sims, cea1_2)
+```
+
+We can repeat the analysis from before, selecting the top intervention again:
+
+```{r}
+# Identify intervention 3
+int3 <- cea2 |>
   group_by(Country) |>
   slice(1) |>
   pull(2)
 
-# Apply intervention 1 to each country
-stage1 <- list()
+# Apply intervention 2 to each country
+stage3 <- list()
 for (i in 1:length(countrylist)) {
   # For each country, obtain the first intervention in the list by cost-effectiveness (int1)
-  # Apply the intervention using the formula above
+  # Apply the intervention using the formula in the rmarkdown file above
 
-  df_post1 <- df_2030 |>
+  df_post3 <- df_stage2 |>
     filter(location_name == countrylist[i]) |>
     mutate(
-      Pop_pregnant_anaemic_1 =
-        Pop_pregnant_anaemic *
-          (1 - coverage_max * (1 - mean(intervention_list[[int1[i]]]))) /
-          (1 - df_coverage[[int1[i]]][df_coverage$location_name == countrylist[i]] * (1 - mean(intervention_list[[int1[i]]]))),
-      Pop_anaemic_1 =
-        ifelse(int1[i] %in% c("DailyIron_Preg", "IntIron_Preg", "Antimalarial"),
-          Pop_anaemic,
-          Pop_anaemic *
-            (1 - coverage_max * (1 - mean(intervention_list[[int1[i]]]))) /
-            (1 - df_coverage[[int1[i]]][df_coverage$location_name == countrylist[i]] * (1 - mean(intervention_list[[int1[i]]])))
+      # Pregnant women receive all interventions
+      Pop_pregnant_anaemic_3 = ceiling(
+        Pop_pregnant_anaemic_2 *
+          (1 - coverage_max * (1 - mean(intervention_list[[int3[i]]]))) /
+          (1 - df_coverage[[int3[i]]][df_coverage$location_name == countrylist[i]] * (1 - mean(intervention_list[[int3[i]]])))
+      ),
+      # Pop_anaemic is the total anaemic population of WRA; includes both pregnant and menstruating women
+      Pop_anaemic_3 = ceiling(
+        # If it's a pregnancy-related intervention, should only affect the prevalence of pregnant anaemic women
+        ifelse(int3[i] %in% c("DailyIron_Preg", "IntIron_Preg", "Antimalarial"),
+          Pop_anaemic_2 + (Pop_pregnant_anaemic_3 - Pop_pregnant_anaemic_2),
+          # If not a pregnancy-related intervention, should affect whole population of WRA, so apply same equation above
+          # Note - the pop_anaemic and pop_pregnant_anaemic both contain pregnant women, so only use the pop_anaemic for net calcs
+          Pop_anaemic_2 *
+            (1 - coverage_max * (1 - mean(intervention_list[[int3[i]]]))) /
+            (1 - df_coverage[[int3[i]]][df_coverage$location_name == countrylist[i]] * (1 - mean(intervention_list[[int3[i]]])))
         )
+      )
     ) |>
     mutate(
-      YLD1 =
+      YLD3 =
         case_when(
-          rei_name == "Mild anemia" ~ (Pop_anaemic_1 + Pop_pregnant_anaemic_1) * 0.005,
-          rei_name == "Moderate anemia" ~ (Pop_anaemic_1 + Pop_pregnant_anaemic_1) * 0.053,
-          rei_name == "Severe anemia" ~ (Pop_anaemic_1 + Pop_pregnant_anaemic_1) * 0.150
+          rei_name == "Mild anemia" ~ Pop_anaemic_3 * 0.005,
+          rei_name == "Moderate anemia" ~ Pop_anaemic_3 * 0.053,
+          rei_name == "Severe anemia" ~ Pop_anaemic_3 * 0.150
         )
     )
-  print(countrylist[i])
+
+  stage3[[i]] <- df_post3
 }
 
-
-```
-
-After which we can simply repeat the simulator without staple foods on the new data:
-```{r, warning = FALSE}
-# Call in functions
-# Run the simulator function for each intervention
-sims <- list(
-  simulator(df_post1, country, interventions[[1]], "Pop_pregnant", "Pop_pregnant_anaemic"), # Daily iron + FA in pregnant women
-  simulator(df_post1, country, interventions[[2]], "Pop_wra", "Pop_anaemic"), # Daily Iron in WRA
-  simulator(df_post1, country, interventions[[5]], "Pop_wra", "Pop_anaemic") # Intermittent iron in WRA
-)
-
-stage2 <- do.call(rbind, sims) |>
-  group_by(Intervention) |>
-  summarise(Cost_per_YLD = mean(Cost_per_YLD)) |>
-  arrange(Cost_per_YLD)
-stage2
+df_stage3 <- do.call(rbind, stage3)
+remove(df_post3, stage3)
 ```
 

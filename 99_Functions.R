@@ -68,17 +68,24 @@ rollup <- function(population) {
 
 # Population calls must be in quotes
 # Try making this empirical instead - simulate the impact of each intervention rather than just use cost / eff
-simulator <- function(prev_data, country, intervention, Pop_eligible, Pop_targeted) {
-  
+simulator <- function(prev_data, country, intervention) {
   df_costs <- df_costs |> filter(location_name == country)
   df_coverage <- df_coverage |> filter(location_name == country)
   prev_data <- prev_data |> filter(location_name == country)
-  
+  Pop_eligible <- case_when(
+    intervention %in% c("DailyIron_Preg", "IntIron_Preg", "Antimalarial") ~ "Pop_pregnant",
+    intervention %in% c("DailyIron_WRA", "IntIron_WRA") ~ "Pop_wra",
+    intervention == "Staple" ~ "Pop_total"
+  )
+  Pop_targeted <- case_when(
+    intervention %in% c("DailyIron_Preg", "IntIron_Preg") ~ "Pop_pregnant_anaemic",
+    intervention %in% c("DailyIron_WRA", "IntIron_WRA", "Staple") ~ "Pop_anaemic",
+    intervention == "Antimalarial" ~ "Pop_pregnant_malaria_anaemic"
+  )
+
   df <- tibble(
     location_name = country,
-    
     Intervention = intervention,
-    
     Cost =
       rtri(iter,
         min = df_costs[[paste0(intervention, "_Low")]],
@@ -87,7 +94,6 @@ simulator <- function(prev_data, country, intervention, Pop_eligible, Pop_target
       ) *
         prev_data[[Pop_eligible]] *
         (coverage_max - df_coverage[[intervention]]),
-    
     Eff =
       prev_data[[Pop_targeted]][prev_data$rei_name == "Mild anemia"] *
         (1 - coverage_max * (1 - intervention_list[[intervention]])) /
@@ -106,5 +112,80 @@ simulator <- function(prev_data, country, intervention, Pop_eligible, Pop_target
   ) |>
     mutate(
       Cost_per_YLD = Cost / Eff
+    )
+}
+
+
+# Intervention applicator function
+apply_intervention <- function(base_data, cea_table) {
+  
+  stage <- list()
+  
+  for (i in 1:length(countrylist)){
+    
+    if (countrylist[i] %in% cea_table$Country) {
+      
+      # Apply the intervention using the formula in the rmarkdown file
+      int <- subset(cea_table, Country == countrylist[i])
+
+      df_post <- base_data |>
+        filter(location_name == countrylist[i]) |>
+        mutate(
+          Pop_pregnant_malaria_anaemic_n = ceiling(
+            Pop_pregnant_malaria_anaemic *
+              (1 - coverage_max * (1 - mean(intervention_list[[int$Intervention]]))) /
+              (1 - df_coverage[[int$Intervention]][df_coverage$location_name == countrylist[i]] *
+                 (1 - mean(intervention_list[[int$Intervention]])))),
+          
+          Pop_pregnant_anaemic_n = case_when(
+            int$Intervention == "Antimalarial" ~ Pop_pregnant_anaemic - (Pop_pregnant_malaria_anaemic - Pop_pregnant_malaria_anaemic_n),
+            .default = ceiling(
+              Pop_pregnant_anaemic *
+                (1 - coverage_max * (1 - mean(intervention_list[[int$Intervention]]))) /
+                (1 - df_coverage[[int$Intervention]][df_coverage$location_name == countrylist[i]] *
+                   (1 - mean(intervention_list[[int$Intervention]]))))),
+            
+            Pop_anaemic_n = case_when(
+              int$Intervention == "Antimalarial" ~ Pop_anaemic - (Pop_pregnant_malaria_anaemic - Pop_pregnant_malaria_anaemic_n),
+              int$Intervention %in% c("DailyIron_Preg", "IntIron_Preg") ~ Pop_anaemic - (Pop_pregnant_anaemic - Pop_pregnant_anaemic_n),
+              .default = ceiling(
+                Pop_anaemic *
+                  (1 - coverage_max * (1 - mean(intervention_list[[int$Intervention]]))) /
+                  (1 - df_coverage[[int$Intervention]][df_coverage$location_name == countrylist[i]] *
+                     (1 - mean(intervention_list[[int$Intervention]]))))
+              ),
+          YLD_n =
+            case_when(
+              rei_name == "Mild anemia" ~ Pop_anaemic_n * 0.005,
+              rei_name == "Moderate anemia" ~ Pop_anaemic_n * 0.053,
+              rei_name == "Severe anemia" ~ Pop_anaemic_n * 0.150
+              )
+            )
+    } else {
+      
+      df_post <- base_data |>
+        filter(location_name == countrylist[i]) |>
+        mutate(
+          Pop_pregnant_anaemic_n = Pop_pregnant_anaemic,
+          Pop_pregnant_malaria_anaemic_n = Pop_pregnant_malaria_anaemic,
+          Pop_anaemic_n = Pop_anaemic,
+          YLD_n =
+            case_when(
+              rei_name == "Mild anemia" ~ Pop_anaemic_n * 0.005,
+              rei_name == "Moderate anemia" ~ Pop_anaemic_n * 0.053,
+              rei_name == "Severe anemia" ~ Pop_anaemic_n * 0.150
+            )
+        )
+    }
+    stage[[i]] <- df_post
+  }
+
+  df_stage <- do.call(rbind, stage) |>
+    select(-c(Pop_pregnant_anaemic, Pop_pregnant_malaria_anaemic, Pop_anaemic, YLD)) |>
+    rename(
+      Pop_pregnant_anaemic = Pop_pregnant_anaemic_n,
+      Pop_pregnant_malaria_anaemic = Pop_pregnant_malaria_anaemic_n,
+      Pop_anaemic = Pop_anaemic_n,
+      YLD = YLD_n
     )
 }

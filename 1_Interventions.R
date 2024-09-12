@@ -23,6 +23,7 @@ df_costs$Staple_High <- df_costs$Staple_Base + 0.01
 
 # Effectiveness
 # Method of moments transformations applied where roughly symmetrical using https://aushsi.shinyapps.io/ShinyPrior/
+set.seed(888)
 intervention_list <- list(
   DailyIron_Preg = rbeta(iter, shape1 = 11.468, shape2 = 19.786),
   DailyIron_WRA = rbeta(iter, shape1 = 12.198, shape2 = 16.861),
@@ -31,7 +32,6 @@ intervention_list <- list(
   Antimalarial = rbeta(iter, shape1 = 337.799, shape2 = 36.688)
 )
 intervention_list[["IntIron_Preg"]] <- rnorm(iter, mean = 1.320, sd = 0.245) * intervention_list$DailyIron_Preg
-
 
 # Intervention coverage
 df_coverage <- vroom("./Data/all_coverage_data.csv", show_col_types = FALSE) |>
