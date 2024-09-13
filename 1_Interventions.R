@@ -2,23 +2,12 @@
 # Qualify interventions by current coverage
 
 # Costs
-df_costs <- vroom("./Data/est_costs.csv", show_col_types = FALSE)
-
-df_costs <- df_costs |>
-  arrange(Region, IncomeGroup) |>
-  group_by(Region, IncomeGroup) |>
-  mutate(
-    Code = cur_group_id(),
-    location_name = countryname(Country)
-  ) |>
-  dplyr::select(-Country) |>
-  relocate(c(location_name, Code), .before = Region) |>
-  ungroup() |>
+df_costs <- vroom("./Data/est_costs.csv", show_col_types = FALSE) |>
+  mutate(Country = case_when(
+    Country == "Micronesia" ~ "Micronesia (Federated States of)",
+    .default = countryname(Country))) |>
+  rename(location_name = Country) |>
   filter(location_name %in% df_2030$location_name)
-
-# Quick fix - Staple currently doesn't have high or low estimates
-df_costs$Staple_Low <- df_costs$Staple_Base - 0.01
-df_costs$Staple_High <- df_costs$Staple_Base + 0.01
 
 
 # Effectiveness

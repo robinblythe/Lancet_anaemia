@@ -67,7 +67,7 @@ rollup <- function(population) {
 }
 
 # Population calls must be in quotes
-# Try making this empirical instead - simulate the impact of each intervention rather than just use cost / eff
+# Note that we can introduce population uncertainty here in the prevalence data, which is recycled over n.iter
 simulator <- function(prev_data, country, intervention) {
   df_costs <- df_costs |> filter(location_name == country)
   df_coverage <- df_coverage |> filter(location_name == country)
@@ -82,18 +82,20 @@ simulator <- function(prev_data, country, intervention) {
     intervention %in% c("DailyIron_WRA", "IntIron_WRA", "Staple") ~ "Pop_anaemic",
     intervention == "Antimalarial" ~ "Pop_pregnant_malaria_anaemic"
   )
-
+  
   df <- tibble(
     location_name = country,
     Intervention = intervention,
-    Cost =
+
+    Cost = ifelse(!is.na(df_costs[[paste0(intervention, "_Base")]]),
       rtri(iter,
         min = df_costs[[paste0(intervention, "_Low")]],
         max = df_costs[[paste0(intervention, "_High")]],
         mode = df_costs[[paste0(intervention, "_Base")]]
       ) *
-        prev_data[[Pop_eligible]] *
+        max(prev_data[[Pop_eligible]]) *
         (coverage_max - df_coverage[[intervention]]),
+      rep(NA_real_, iter)),
     Eff =
       prev_data[[Pop_targeted]][prev_data$rei_name == "Mild anemia"] *
         (1 - coverage_max * (1 - intervention_list[[intervention]])) /
@@ -108,10 +110,9 @@ simulator <- function(prev_data, country, intervention) {
         prev_data[[Pop_targeted]][prev_data$rei_name == "Severe anemia"] *
           (1 - coverage_max * (1 - intervention_list[[intervention]])) /
           (1 - df_coverage[[intervention]] * (1 - intervention_list[[intervention]])) *
-          YLD_severe
-  ) |>
-    mutate(
-      Cost_per_YLD = Cost / Eff
+          YLD_severe,
+    
+    Cost_per_YLD = Cost / Eff
     )
 }
 
