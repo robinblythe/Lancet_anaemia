@@ -21,25 +21,29 @@ source("./99_Functions.R")
 # Read in 2030 population estimates
 df_2030 <- readRDS("./Data/est_2030.rds")
 
-# Get full country list
-countrylist <- unique(df_2030$location_name)
-
 # Assuming 10,000 iterations
 iter <- 10000
 
 # And a WTP threshold of $10000 (just chose a random number)
 WTP <- 10000
 
-# Maximum possible coverage is 90% in this example
-coverage_max <- 0.9
+# Maximum possible coverage is 100% in this example
+# Note that if actual coverage > maximum coverage, there will be negative costs
+coverage_max <- 1
+
+# Read in costs, interventions, coverage and filter by compatible countries
+source("./1_Interventions.R")
+df_2030 <- df_2030 |>
+  filter(location_name %in% Reduce(intersect, list(df_2030$location_name, df_costs$location_name, df_coverage$location_name)))
+
+# Get full country list
+countrylist <- unique(df_2030$location_name)
 
 # YLDs from anaemia:
 YLD_mild <- 0.005
 YLD_moderate <- 0.053
 YLD_severe <- 0.150
 
-# Read in costs, interventions, coverage and filter by country
-source("./1_Interventions.R")
 ```
 
 There are 6 interventions we will consider in this list:  

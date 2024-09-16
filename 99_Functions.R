@@ -190,3 +190,5 @@ apply_intervention <- function(base_data, cea_table) {
       YLD = YLD_n
     )
 }
+
+
