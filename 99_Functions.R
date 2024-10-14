@@ -73,13 +73,13 @@ simulator <- function(prev_data, country, intervention) {
   df_coverage <- df_coverage |> filter(location_name == country)
   prev_data <- prev_data |> filter(location_name == country)
   Pop_eligible <- case_when(
-    intervention %in% c("DailyIron_Preg", "IntIron_Preg", "Antimalarial") ~ "Pop_pregnant",
-    intervention %in% c("DailyIron_WRA", "IntIron_WRA") ~ "Pop_wra",
-    intervention == "Staple" ~ "Pop_total"
+    intervention %in% c("Iron_Preg", "Antimalarial") ~ "Pop_pregnant",
+    intervention == "Iron_WRA" ~ "Pop_wra",
+    intervention == "Fortification" ~ "Pop_total"
   )
   Pop_targeted <- case_when(
-    intervention %in% c("DailyIron_Preg", "IntIron_Preg") ~ "Pop_pregnant_anaemic",
-    intervention %in% c("DailyIron_WRA", "IntIron_WRA", "Staple") ~ "Pop_anaemic",
+    intervention == "Iron_Preg" ~ "Pop_pregnant_anaemic",
+    intervention %in% c("Iron_WRA", "Fortification") ~ "Pop_anaemic",
     intervention == "Antimalarial" ~ "Pop_pregnant_malaria_anaemic"
   )
   
@@ -87,15 +87,16 @@ simulator <- function(prev_data, country, intervention) {
     location_name = country,
     Intervention = intervention,
 
-    Cost = ifelse(!is.na(df_costs[[paste0(intervention, "_Base")]]),
+    Cost = 
       rtri(iter,
-        min = df_costs[[paste0(intervention, "_Low")]],
-        max = df_costs[[paste0(intervention, "_High")]],
-        mode = df_costs[[paste0(intervention, "_Base")]]
-      ) *
-        max(prev_data[[Pop_eligible]]) *
+           min = df_costs[[paste0(intervention, "_Low")]],
+           max = df_costs[[paste0(intervention, "_High")]],
+           mode = df_costs[[paste0(intervention, "_Base")]]
+           ) *
+      max(prev_data[[Pop_eligible]]) *
         (coverage_max - df_coverage[[intervention]]),
-      rep(NA_real_, iter)),
+    
+    # Effectiveness determined by daily or intermittent
     Eff =
       prev_data[[Pop_targeted]][prev_data$rei_name == "Mild anemia"] *
         (1 - coverage_max * (1 - intervention_list[[intervention]])) /
@@ -112,7 +113,7 @@ simulator <- function(prev_data, country, intervention) {
           (1 - df_coverage[[intervention]] * (1 - intervention_list[[intervention]])) *
           YLD_severe,
     
-    Cost_per_YLD = Cost / Eff
+    Cost_per_YLD = ifelse(df_coverage[[intervention]] == 1, Inf, Cost / Eff)
     )
 }
 

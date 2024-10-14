@@ -2,10 +2,11 @@
 # Qualify interventions by current coverage
 
 # Costs
-df_costs <- vroom("./Data/est_costs.csv", show_col_types = FALSE) |>
+df_costs <- vroom("./Data/unit_costs.csv", show_col_types = FALSE) |>
   mutate(Country = case_when(
     Country == "Micronesia" ~ "Micronesia (Federated States of)",
     .default = countryname(Country))) |>
+  suppressWarnings() |>
   rename(location_name = Country) |>
   filter(location_name %in% df_2030$location_name)
 
@@ -14,13 +15,13 @@ df_costs <- vroom("./Data/est_costs.csv", show_col_types = FALSE) |>
 # Method of moments transformations applied where roughly symmetrical using https://aushsi.shinyapps.io/ShinyPrior/
 set.seed(888)
 intervention_list <- list(
-  DailyIron_Preg = rbeta(iter, shape1 = 11.468, shape2 = 19.786),
-  DailyIron_WRA = rbeta(iter, shape1 = 12.198, shape2 = 16.861),
-  Staple = rnorm(iter, mean = 0.755, sd = 0.110),
-  IntIron_WRA = rbeta(iter, shape1 = 14.525, shape2 = 6.285),
+  Iron_Preg = rbeta(iter, shape1 = 11.468, shape2 = 19.786), # DAILY IRON
+  Iron_WRA = rbeta(iter, shape1 = 12.198, shape2 = 16.861), # DAILY IRON
+  Fortification = rnorm(iter, mean = 0.755, sd = 0.110),
+  #IntIron_WRA = rbeta(iter, shape1 = 14.525, shape2 = 6.285),
   Antimalarial = rbeta(iter, shape1 = 337.799, shape2 = 36.688)
 )
-intervention_list[["IntIron_Preg"]] <- rnorm(iter, mean = 1.320, sd = 0.245) * intervention_list$DailyIron_Preg
+#intervention_list[["IntIron_Preg"]] <- rnorm(iter, mean = 1.320, sd = 0.245) * intervention_list$DailyIron_Preg
 
 # Intervention coverage
 df_coverage <- vroom("./Data/all_coverage_data.csv", show_col_types = FALSE) |>
@@ -34,11 +35,11 @@ df_coverage <- df_coverage |>
   mutate(location_name = countryname(`Country/Economy`)) |>
   group_by(location_name) |>
   mutate(
-    Staple = max(c(Staple_wheat, Staple_rice, Staple_maize)),
-    DailyIron_Preg = DailyIron,
-    DailyIron_WRA = DailyIron
+    Fortification = max(c(Staple_wheat, Staple_rice, Staple_maize)),
+    Iron_Preg = DailyIron,
+    Iron_WRA = DailyIron
   ) |>
   select(
-    location_name, DailyIron_Preg, DailyIron_WRA, Staple, Antimalarial
+    location_name, Iron_Preg, Iron_WRA, Fortification, Antimalarial
   ) |>
   ungroup()

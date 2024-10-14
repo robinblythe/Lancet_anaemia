@@ -21,11 +21,8 @@ source("./99_Functions.R")
 # Read in 2030 population estimates
 df_2030 <- readRDS("./Data/est_2030.rds")
 
-# Assuming 10,000 iterations
+# Using 10,000 iterations
 iter <- 10000
-
-# And a WTP threshold of $10000 (just chose a random number)
-WTP <- 10000
 
 # Maximum possible coverage is 100% in this example
 # Note that if actual coverage > maximum coverage, there will be negative costs
@@ -34,7 +31,10 @@ coverage_max <- 1
 # Read in costs, interventions, coverage and filter by compatible countries
 source("./1_Interventions.R")
 df_2030 <- df_2030 |>
-  filter(location_name %in% Reduce(intersect, list(df_2030$location_name, df_costs$location_name, df_coverage$location_name)))
+  filter(location_name %in% Reduce(intersect, list(
+    df_2030$location_name, 
+    df_costs$location_name, 
+    df_coverage$location_name)))
 
 # Get full country list
 countrylist <- unique(df_2030$location_name)
@@ -44,17 +44,23 @@ YLD_mild <- 0.005
 YLD_moderate <- 0.053
 YLD_severe <- 0.150
 
+# Which WTP threshold to use: lower or upper?
+Threshold <- "Lower"
+WTP <- df_costs |>
+  select(location_name, 
+         paste0(Threshold, "_WTP")) |>
+  rename(Country = location_name,
+         WTP = paste0(Threshold, "_WTP"))
+
 ```
 
-There are 6 interventions we will consider in this list:  
+There are 4 interventions we will consider in this list.  However, the iron supplementation program will be modified depending on the baseline prevalence of anaemia in the population, which affects whether it will be implemented daily or intermittently.
 ```{r}
 # List of interventions:
 interventions <- c(
-  "DailyIron_Preg", # Daily iron and folic acid supplementation in pregnant women
-  "DailyIron_WRA", # Daily iron supplementation in WRA
-  "Staple", # Staple food supplementation in all individuals
-  "IntIron_Preg", # Intermittent iron and folic acid supplementation in pregnant women
-  "IntIron_WRA", # Intermittent iron supplementation in WRA
+  "Iron_Preg", # Iron and folic acid supplementation in pregnant women
+  "Iron_WRA", # Iron supplementation in WRA
+  "Fortification", # Staple food supplementation in all individuals
   "Antimalarial" # Antenatal intermittent antimalarials
 )
 ```
@@ -73,6 +79,7 @@ $$
 First we need to do the initial setup. We create a league table for each country, ranking the 6 interventions by cost/YLD:
 
 ```{r, warning = FALSE, message = FALSE}
+gc()
 # Run the simulator function for each intervention:
 # Simulator takes prevalence data, country, intervention name, eligible population (for costs) and targeted population (for effects)
 
@@ -82,18 +89,14 @@ for (i in 1:length(countrylist)) {
   country <- countrylist[i]
 
   sims <- list(
-    # Daily iron + FA in pregnant women
+    # Iron supplementation in pregnant women
     simulator(df_2030, country, interventions[[1]]),
-    # Daily Iron in WRA
+    # Iron supplementation in all WRA
     simulator(df_2030, country, interventions[[2]]),
     # Staple food supplementation for all
     simulator(df_2030, country, interventions[[3]]),
-    # Intermittent iron + FA for pregnant women
-    simulator(df_2030, country, interventions[[4]]),
-    # Intermittent iron in WRA
-    simulator(df_2030, country, interventions[[5]]),
-    # Antimalarials in pregnant women
-    simulator(df_2030, country, interventions[[6]])
+    # Presumptive treatment for malaria in pregnant women
+    simulator(df_2030, country, interventions[[4]])
   )
 
   stage0[[i]] <- do.call(rbind, sims) |>
@@ -104,7 +107,8 @@ for (i in 1:length(countrylist)) {
   }
 
 cea <- do.call(rbind, stage0) |>
-  arrange(Country, Cost_per_YLD)
+  arrange(Country, Cost_per_YLD) |>
+  left_join(WTP)
 remove(stage0, sims)
 ```
 
@@ -130,6 +134,7 @@ Now we can have an updated dataset of our expected prevalence of each type of an
 This lets us re-do the simulator function to obtain an updated cost-effectiveness table, less the intervention we just applied.
 
 ```{r, warning = FALSE}
+gc()
 cea0_1 <- cea |>
   group_by(Country) |>
   slice(-1) |>
@@ -156,7 +161,8 @@ for (i in 1:length(countrylist)) {
     arrange(Cost_per_YLD)
 }
 
-cea1 <- do.call(rbind, stage1) 
+cea1 <- do.call(rbind, stage1) |>
+  left_join(WTP)
 remove(stage1, sims, cea0_1)
 ```
 
@@ -179,6 +185,8 @@ df_stage2 <- apply_intervention(base_data = df_stage1, cea_table = int2)
 We can now see that some countries have an unchanged prevalence estimate. This is because there are no more cost-effective interventions that can be done, or they simply are not able to apply them (e.g. the population does not eat a fortifiable staple food). We now get an updated CEA table following two interventions:
 
 ```{r, warning = FALSE}
+gc()
+
 cea1_2 <- cea1 |>
   group_by(Country) |>
   slice(-1) |>
@@ -203,7 +211,8 @@ for (i in 1:length(countrylist)) {
     arrange(Cost_per_YLD)
 }
 
-cea2 <- do.call(rbind, stage2)
+cea2 <- do.call(rbind, stage2) |>
+  left_join(WTP)
 remove(stage2, sims, cea1_2)
 ```
 
@@ -224,6 +233,8 @@ df_stage3 <- apply_intervention(base_data = df_stage2, cea_table = int3)
 Most countries now have little or no treatments remaining. Re-applying the simulator function, we get:
 
 ```{r}
+gc()
+
 cea2_3 <- cea2 |>
   group_by(Country) |>
   slice(-1) |>
@@ -241,7 +252,8 @@ for (i in 1:length(countrylist)) {
     arrange(Cost_per_YLD)
 }
 
-cea3 <- do.call(rbind, stage3)
+cea3 <- do.call(rbind, stage3) |>
+  left_join(WTP)
 remove(stage3, cea2_3)
 ```
 
@@ -255,7 +267,8 @@ int4 <- cea3 |>
   group_by(Country) |>
   slice(1)
 
-# Apply intervention 2 to each country
+# Apply intervention 4 to each country
+# In reality there is no intervention 4; no countries retain cost-effectiveness for the 4th intervention
 df_final <- apply_intervention(base_data = df_stage3, cea_table = int4)
 ```
 
@@ -270,7 +283,31 @@ df_change <- df_final |>
          YLD_post = YLD) |>
   full_join(df_2030) |>
   mutate(Change_anaemic = Pop_anaemic_post - Pop_anaemic,
-         Pct_change_anaemic = Change_anaemic/Pop_anaemic)
+         Pct_change_anaemic = Change_anaemic/Pop_anaemic) |>
+  rename(Pop_pregnant_anaemic_pre = Pop_pregnant_anaemic,
+         Pop_pregnant_malaria_anaemic_pre = Pop_pregnant_malaria_anaemic,
+         Pop_anaemic_pre = Pop_anaemic,
+         YLD_pre = YLD)
+
+final_reduction <- df_change |>
+  group_by(location_name) |>
+  summarise(anaemic_pre = sum(Pop_anaemic_pre),
+            anaemic_post = sum(Pop_anaemic_post)) |>
+  mutate(Pct_change_anaemic = (anaemic_pre - anaemic_post)/anaemic_pre)
+
+meanval <- paste0("Mean reduction in anaemia = ", round(mean(final_reduction$Pct_change_anaemic), 2))
+
+p <- final_reduction |>
+  ggplot()
+
+p + 
+  geom_histogram(aes(Pct_change_anaemic), binwidth = 0.025) +
+  scale_x_continuous(breaks = seq(0, 1, 0.05)) +
+  geom_vline(aes(xintercept = mean(Pct_change_anaemic)), colour = "red") +
+  annotate("text", label = meanval, 
+           x = mean(final_reduction$Pct_change_anaemic), 
+           y = 35,
+           colour = "red")
 
 
 ```
