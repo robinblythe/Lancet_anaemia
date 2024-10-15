@@ -57,7 +57,7 @@ remove(fert, still)
 
 # Predict 2030 anaemia rates based on existing prevalence using smoothing splines - if we want to use them
 # preds <- list()
-# 
+#
 # for (i in 1:length(countries)) {
 #   preds$mild[[i]] <- tibble(
 #     location_name = countries[i],
@@ -68,7 +68,7 @@ remove(fert, still)
 #       predict(smooth.spline(x = year_id, y = Prevalence), x = pred_year)$y
 #     )
 #   )
-# 
+#
 #   preds$moderate[[i]] <- tibble(
 #     location_name = countries[i],
 #     year_id = pred_year,
@@ -78,7 +78,7 @@ remove(fert, still)
 #       predict(smooth.spline(x = year_id, y = Prevalence), x = pred_year)$y
 #     )
 #   )
-# 
+#
 #   preds$severe[[i]] <- tibble(
 #     location_name = countries[i],
 #     year_id = pred_year,
@@ -88,7 +88,7 @@ remove(fert, still)
 #       predict(smooth.spline(x = year_id, y = Prevalence), x = pred_year)$y
 #     )
 #   )
-# 
+#
 #   preds$wra[[i]] <- tibble(
 #     location_name = countries[i],
 #     year_id = pred_year,
@@ -97,7 +97,7 @@ remove(fert, still)
 #       predict(smooth.spline(x = year_id, y = Pop_wra), x = pred_year)$y
 #     )
 #   )
-# 
+#
 #   preds$total[[i]] <- tibble(
 #     location_name = countries[i],
 #     year_id = pred_year,
@@ -107,7 +107,7 @@ remove(fert, still)
 #     )
 #   )
 # }
-# 
+#
 # # Roll up predictions into 2030 dataset
 # df_analysis <- bind_rows(preds) |>
 #   group_by(location_name) |>
@@ -133,8 +133,8 @@ remove(fert, still)
 
 # If using 2021 data, just start from here:
 df_analysis <- left_join(gbd, pregnancy) |>
-    filter(year_id == 2021) |>
-    select(-year_id) |>
+  filter(year_id == 2021) |>
+  select(-year_id) |>
   mutate(
     Pop_pregnant = ceiling(Pr_pregnant * Pop_wra),
     Pop_pregnant_anaemic = ceiling(Pr_pregnant * Prevalence),
@@ -173,7 +173,7 @@ df_2030 <- left_join(df_analysis, malaria) |>
     rei_name == "Severe anemia" ~ Pop_anaemic * 0.150
   )) |>
   group_by(location_name) |>
-  mutate(Anaemia_rate = sum(Pop_anaemic)/max(Pop_wra)) |>
+  mutate(Anaemia_rate = sum(Pop_anaemic) / max(Pop_wra)) |>
   relocate(Anaemia_rate, .before = Pop_wra) |>
   ungroup()
 

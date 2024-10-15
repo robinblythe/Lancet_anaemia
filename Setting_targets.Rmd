@@ -1,5 +1,5 @@
 ---
-title: 'Setting targets in global health: Case study'
+title: 'Setting targets in anaemia'
 ---
 
 This markdown file describes the analysis plan for the secondary target setting paper.  
@@ -7,7 +7,7 @@ The paper will essentially show how target setting can be done using league tabl
 
 The visualisation plan is for league tables by region, with regions as facets on the Y-axis (vertical), and cost/DALY on the X-axis (horizontal) with a dashed line for each facet denoting the regional WTP and a density plot for each distribution of cost/YLD by simulation.
 
-```{r, echo = FALSE, message = FALSE, warning = FALSE, include = FALSE}
+```{r, warning = FALSE, message = FALSE}
 options(scipen = 999, digits = 5)
 
 library(vroom)
@@ -15,6 +15,7 @@ library(countrycode)
 library(EnvStats)
 library(zoo)
 library(tidyverse)
+library(scales)
 
 source("./99_Functions.R")
 
@@ -32,9 +33,10 @@ coverage_max <- 1
 source("./1_Interventions.R")
 df_2030 <- df_2030 |>
   filter(location_name %in% Reduce(intersect, list(
-    df_2030$location_name, 
-    df_costs$location_name, 
-    df_coverage$location_name)))
+    df_2030$location_name,
+    df_costs$location_name,
+    df_coverage$location_name
+  )))
 
 # Get full country list
 countrylist <- unique(df_2030$location_name)
@@ -45,13 +47,16 @@ YLD_moderate <- 0.053
 YLD_severe <- 0.150
 
 # Which WTP threshold to use: lower or upper?
-Threshold <- "Lower"
+Threshold <- "Upper"
 WTP <- df_costs |>
-  select(location_name, 
-         paste0(Threshold, "_WTP")) |>
-  rename(Country = location_name,
-         WTP = paste0(Threshold, "_WTP"))
-
+  select(
+    location_name,
+    paste0(Threshold, "_WTP")
+  ) |>
+  rename(
+    Country = location_name,
+    WTP = paste0(Threshold, "_WTP")
+  )
 ```
 
 There are 4 interventions we will consider in this list.  However, the iron supplementation program will be modified depending on the baseline prevalence of anaemia in the population, which affects whether it will be implemented daily or intermittently.
@@ -101,10 +106,15 @@ for (i in 1:length(countrylist)) {
 
   stage0[[i]] <- do.call(rbind, sims) |>
     group_by(Intervention) |>
-    summarise(Cost_per_YLD = mean(Cost_per_YLD)) |>
+    summarise(
+      Cost_per_YLD_low = quantile(Cost_per_YLD, 0.025, na.rm = T),
+      Cost_per_YLD_high = quantile(Cost_per_YLD, 0.975, na.rm = T),
+      Cost_per_YLD = mean(Cost_per_YLD),
+      Total_spend = mean(Cost, na.rm = T)
+    ) |>
     mutate(Country = country) |>
     relocate(Country, .before = Intervention)
-  }
+}
 
 cea <- do.call(rbind, stage0) |>
   arrange(Country, Cost_per_YLD) |>
@@ -124,10 +134,13 @@ int1 <- cea |>
   group_by(Country) |>
   slice(1)
 
+total_spend <- int1 |>
+  select(Country, Total_spend) |>
+  rename(Total_spend_1 = Total_spend)
+
 # Apply intervention 1 to each country if cost-effective using applicator function
 # Applicator function takes the above intervention table and extracts the intervention, then applies it to the baseline data provided
 df_stage1 <- apply_intervention(base_data = df_2030, cea_table = int1)
-
 ```
 
 Now we can have an updated dataset of our expected prevalence of each type of anaemia across each population of interest.
@@ -155,7 +168,12 @@ for (i in 1:length(countrylist)) {
 
   stage1[[i]] <- do.call(rbind, sims) |>
     group_by(Intervention) |>
-    summarise(Cost_per_YLD = mean(Cost_per_YLD)) |>
+    summarise(
+      Cost_per_YLD_low = quantile(Cost_per_YLD, 0.025, na.rm = T),
+      Cost_per_YLD_high = quantile(Cost_per_YLD, 0.975, na.rm = T),
+      Cost_per_YLD = mean(Cost_per_YLD),
+      Total_spend = mean(Cost, na.rm = T)
+    ) |>
     mutate(Country = country) |>
     relocate(Country, .before = Intervention) |>
     arrange(Cost_per_YLD)
@@ -177,9 +195,14 @@ int2 <- cea1 |>
   group_by(Country) |>
   slice(1)
 
+total_spend <- int2 |>
+  select(Country, Total_spend) |>
+  rename(Total_spend_2 = Total_spend) |>
+  full_join(total_spend)
+  
+
 # Apply intervention 2 to each country
 df_stage2 <- apply_intervention(base_data = df_stage1, cea_table = int2)
-
 ```
 
 We can now see that some countries have an unchanged prevalence estimate. This is because there are no more cost-effective interventions that can be done, or they simply are not able to apply them (e.g. the population does not eat a fortifiable staple food). We now get an updated CEA table following two interventions:
@@ -205,7 +228,12 @@ for (i in 1:length(countrylist)) {
 
   stage2[[i]] <- do.call(rbind, sims) |>
     group_by(Intervention) |>
-    summarise(Cost_per_YLD = mean(Cost_per_YLD)) |>
+    summarise(
+      Cost_per_YLD_low = quantile(Cost_per_YLD, 0.025, na.rm = T),
+      Cost_per_YLD_high = quantile(Cost_per_YLD, 0.975, na.rm = T),
+      Cost_per_YLD = mean(Cost_per_YLD),
+      Total_spend = mean(Cost, na.rm = T)
+    ) |>
     mutate(Country = country) |>
     relocate(Country, .before = Intervention) |>
     arrange(Cost_per_YLD)
@@ -226,11 +254,16 @@ int3 <- cea2 |>
   group_by(Country) |>
   slice(1)
 
+total_spend <- int3 |>
+  select(Country, Total_spend) |>
+  rename(Total_spend_3 = Total_spend) |>
+  full_join(total_spend)
+
 # Apply intervention 3 to each country
 df_stage3 <- apply_intervention(base_data = df_stage2, cea_table = int3)
 ```
 
-Most countries now have little or no treatments remaining. Re-applying the simulator function, we get:
+Most countries now have few or no treatments remaining. Re-applying the simulator function, we get:
 
 ```{r}
 gc()
@@ -243,10 +276,15 @@ cea2_3 <- cea2 |>
 stage3 <- list()
 for (i in 1:length(countrylist)) {
   country <- countrylist[i]
-  
+
   stage3[[i]] <- simulator(df_stage3, country, cea2_3$Intervention[cea2_3$Country == country][1]) |>
     group_by(Intervention) |>
-    summarise(Cost_per_YLD = mean(Cost_per_YLD)) |>
+    summarise(
+      Cost_per_YLD_low = quantile(Cost_per_YLD, 0.025, na.rm = T),
+      Cost_per_YLD_high = quantile(Cost_per_YLD, 0.975, na.rm = T),
+      Cost_per_YLD = mean(Cost_per_YLD),
+      Total_spend = mean(Cost, na.rm = T)
+    ) |>
     mutate(Country = country) |>
     relocate(Country, .before = Intervention) |>
     arrange(Cost_per_YLD)
@@ -267,6 +305,11 @@ int4 <- cea3 |>
   group_by(Country) |>
   slice(1)
 
+total_spend <- int4 |>
+  select(Country, Total_spend) |>
+  rename(Total_spend_4 = Total_spend) |>
+  full_join(total_spend)
+
 # Apply intervention 4 to each country
 # In reality there is no intervention 4; no countries retain cost-effectiveness for the 4th intervention
 df_final <- apply_intervention(base_data = df_stage3, cea_table = int4)
@@ -275,41 +318,74 @@ df_final <- apply_intervention(base_data = df_stage3, cea_table = int4)
 And that's it! The next part is just visualising the change following the application of all interventions
 
 ```{r}
-
 df_change <- df_final |>
-  rename(Pop_pregnant_anaemic_post = Pop_pregnant_anaemic,
-         Pop_pregnant_malaria_anaemic_post = Pop_pregnant_malaria_anaemic,
-         Pop_anaemic_post = Pop_anaemic,
-         YLD_post = YLD) |>
+  rename(
+    Pop_pregnant_anaemic_post = Pop_pregnant_anaemic,
+    Pop_pregnant_malaria_anaemic_post = Pop_pregnant_malaria_anaemic,
+    Pop_anaemic_post = Pop_anaemic,
+    YLD_post = YLD
+  ) |>
   full_join(df_2030) |>
-  mutate(Change_anaemic = Pop_anaemic_post - Pop_anaemic,
-         Pct_change_anaemic = Change_anaemic/Pop_anaemic) |>
-  rename(Pop_pregnant_anaemic_pre = Pop_pregnant_anaemic,
-         Pop_pregnant_malaria_anaemic_pre = Pop_pregnant_malaria_anaemic,
-         Pop_anaemic_pre = Pop_anaemic,
-         YLD_pre = YLD)
+  mutate(
+    Change_anaemic = Pop_anaemic_post - Pop_anaemic,
+    Pct_change_anaemic = Change_anaemic / Pop_anaemic
+  ) |>
+  rename(
+    Pop_pregnant_anaemic_pre = Pop_pregnant_anaemic,
+    Pop_pregnant_malaria_anaemic_pre = Pop_pregnant_malaria_anaemic,
+    Pop_anaemic_pre = Pop_anaemic,
+    YLD_pre = YLD
+  )
+
+total_spend <- total_spend %>%
+  replace(is.na(.), 0) |>
+  mutate(Total_spend_all = 
+           Total_spend_1 +
+           Total_spend_2 +
+           Total_spend_3 +
+           Total_spend_4)
 
 final_reduction <- df_change |>
-  group_by(location_name) |>
-  summarise(anaemic_pre = sum(Pop_anaemic_pre),
-            anaemic_post = sum(Pop_anaemic_post)) |>
-  mutate(Pct_change_anaemic = (anaemic_pre - anaemic_post)/anaemic_pre)
+  rename(Country = location_name) |>
+  group_by(Country) |>
+  summarise(
+    anaemic_pre = sum(Pop_anaemic_pre),
+    anaemic_post = sum(Pop_anaemic_post)
+  ) |>
+  mutate(Pct_change_anaemic = (anaemic_pre - anaemic_post) / anaemic_pre) |>
+  left_join(total_spend[,c("Country", "Total_spend_all")])
 
 meanval <- paste0("Mean reduction in anaemia = ", round(mean(final_reduction$Pct_change_anaemic), 2))
 
 p <- final_reduction |>
   ggplot()
 
-p + 
+p +
   geom_histogram(aes(Pct_change_anaemic), binwidth = 0.025) +
   scale_x_continuous(breaks = seq(0, 1, 0.05)) +
   geom_vline(aes(xintercept = mean(Pct_change_anaemic)), colour = "red") +
-  annotate("text", label = meanval, 
-           x = mean(final_reduction$Pct_change_anaemic), 
-           y = 35,
-           colour = "red")
+  annotate("text",
+    label = meanval,
+    x = mean(final_reduction$Pct_change_anaemic),
+    y = 35,
+    colour = "red"
+  )
 
+p +
+  geom_histogram(aes(x = Total_spend_all), binwidth = 25000000) +
+  scale_x_continuous(label = comma)
 
+p +
+  geom_point(aes(x = Pct_change_anaemic, y = Total_spend_all)) + 
+  scale_x_continuous(breaks = seq(0, 1, 0.05)) +
+  scale_y_continuous(label = comma) +
+  geom_vline(aes(xintercept = mean(Pct_change_anaemic)), colour = "red") +
+  annotate("text",
+    label = meanval,
+    x = mean(final_reduction$Pct_change_anaemic),
+    y = 2e9,
+    colour = "red"
+  ) 
 ```
 
 

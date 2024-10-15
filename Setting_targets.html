@@ -361,58 +361,21 @@ league tables of viable interventions, with a country’s cost per YLD
 averted. This will prioritise an intervention to be done first up to the
 maximum viable coverage, then remove it from the list and repeat the
 league table exercise until all interventions are applied, costs are too
-high, or cost-effectiveness is unlikely.</p>
-<p>The initial idea was league tables by region, with regions as facets
-on the Y-axis (vertical), and cost/DALY on the X-axis (horizontal) with
-a dashed line for each facet denoting the regional WTP and a density
-plot for each distribution of cost/YLD by simulation. However, for the
-initial test, we will just use a single country.</p>
-<pre class="r"><code>gc()</code></pre>
-<pre><code>##           used (Mb) gc trigger (Mb) max used (Mb)
-## Ncells  760886 40.7    1384245   74  1384245 74.0
-## Vcells 1495558 11.5    8388608   64  2493919 19.1</code></pre>
-<pre class="r"><code>options(scipen = 999, digits = 5)
-
-library(tidyverse)
-library(vroom)
-library(countrycode)
-library(EnvStats)
-library(zoo)
-
-# Select the sample country
-country &lt;- &quot;Armenia&quot;
-
-# Read in 2030 population estimates
-df_2030 &lt;- readRDS(&quot;./Data/est_2030.rds&quot;) |&gt;
-  filter(location_name == country)
-
-# Assuming 10,000 iterations
-iter &lt;- 10000
-
-# Read in costs, interventions, coverage and filter by country
-source(&quot;./1_Interventions.R&quot;)
-df_coverage &lt;- df_coverage |&gt;
-  filter(location_name == country)
-
-# Maximum possible coverage is 100% in this example
-coverage_max &lt;- 1
-
-# YLDs saved:
-YLD_mild &lt;- 0.005
-YLD_moderate &lt;- 0.053
-YLD_severe &lt;- 0.150</code></pre>
-<p>There are 9 interventions we will consider in this list:</p>
-<pre class="r"><code># List of interventions
+high, or cost-effectiveness is not achievable.</p>
+<p>The visualisation plan is for league tables by region, with regions
+as facets on the Y-axis (vertical), and cost/DALY on the X-axis
+(horizontal) with a dashed line for each facet denoting the regional WTP
+and a density plot for each distribution of cost/YLD by simulation.</p>
+<p>There are 4 interventions we will consider in this list. However, the
+iron supplementation program will be modified depending on the baseline
+prevalence of anaemia in the population, which affects whether it will
+be implemented daily or intermittently.</p>
+<pre class="r"><code># List of interventions:
 interventions &lt;- c(
-  &quot;DailyIron_Preg&quot;, # Daily iron and folic acid supplementation in pregnant women
-  &quot;DailyIron_WRA&quot;, # Daily iron supplementation in WRA
-  &quot;Deworm&quot;, # Deworming tablets in WRA
-  &quot;Staple&quot;, # Staple food supplementation in all individuals
-  &quot;ITN&quot;, # Insecticide treated bednets in pregnant women
-  &quot;IntIron_Preg&quot;, # Intermittent iron and folic acid supplementation in pregnant women
-  &quot;IntIron_WRA&quot;, # Intermittent iron supplementation in WRA
-  &quot;Antimalarial&quot;, # Antenatal intermittent antimalarials
-  &quot;MMS&quot; # Micronutrient supplements in pregnant women
+  &quot;Iron_Preg&quot;, # Iron and folic acid supplementation in pregnant women
+  &quot;Iron_WRA&quot;, # Iron supplementation in WRA
+  &quot;Fortification&quot;, # Staple food supplementation in all individuals
+  &quot;Antimalarial&quot; # Antenatal intermittent antimalarials
 )</code></pre>
 <p>The basic structure of the league table idea is as follows:<br />
 - Obtain the cost of each intervention per person and multiply by the
@@ -429,82 +392,231 @@ ascending<br />
 - Pick the top option and then remove that intervention from the
 list<br />
 - Repeat</p>
-<pre class="r"><code># Call in functions
-source(&quot;./99_Functions.R&quot;)
+<p>First we need to do the initial setup. We create a league table for
+each country, ranking the 6 interventions by cost/YLD:</p>
+<pre class="r"><code>gc()</code></pre>
+<pre><code>##           used (Mb) gc trigger  (Mb) max used  (Mb)
+## Ncells 1396310 74.6    2341481 125.1  2341481 125.1
+## Vcells 2889600 22.1    8388608  64.0  6186466  47.2</code></pre>
+<pre class="r"><code># Run the simulator function for each intervention:
+# Simulator takes prevalence data, country, intervention name, eligible population (for costs) and targeted population (for effects)
 
-# Run the simulator function for each intervention
-sims &lt;- list(
-  simulator(df_2030, country, interventions[[1]], &quot;Pop_pregnant&quot;, &quot;Pop_pregnant_anaemic&quot;), # Daily iron + FA in pregnant women
-  simulator(df_2030, country, interventions[[2]], &quot;Pop_wra&quot;, &quot;Pop_anaemic&quot;), # Daily Iron in WRA
-  simulator(df_2030, country, interventions[[3]], &quot;Pop_wra&quot;, &quot;Pop_anaemic&quot;), # Deworming tablets in WRA
-  simulator(df_2030, country, interventions[[4]], &quot;Pop_total&quot;, &quot;Pop_anaemic&quot;) # Staple food supplementation for all
-)
+# Run analysis for each country
+stage0 &lt;- list()
+for (i in 1:length(countrylist)) {
+  country &lt;- countrylist[i]
 
-stage1 &lt;- do.call(rbind, sims) |&gt;
-  group_by(Intervention) |&gt;
-  summarise(Cost_per_YLD = mean(Cost_per_YLD)) |&gt;
-  arrange(Cost_per_YLD)
-stage1</code></pre>
-<pre><code>## # A tibble: 4 × 2
-##   Intervention   Cost_per_YLD
-##   &lt;chr&gt;                 &lt;dbl&gt;
-## 1 Staple                 104.
-## 2 Deworm                1015.
-## 3 DailyIron_WRA         2832.
-## 4 DailyIron_Preg        4094.</code></pre>
-<p>This demonstrates that staple food supplementation may be the most
-cost-effective method. If we repeat the analysis now with staple
-removed, that requires us to modify the prevalence data first:</p>
-<pre class="r"><code>df_post1 &lt;- df_2030 |&gt;
-  mutate(
-    Pop_pregnant_anaemic =
-      Pop_pregnant_anaemic *
-      (1 - coverage_max * (1 - mean(intervention_list$Staple))) / 
-      (1 - df_coverage$Staple * (1 - mean(intervention_list$Staple))),
-    Pop_anaemic = 
-      Pop_anaemic *
-      (1 - coverage_max * (1 - mean(intervention_list$Staple))) / 
-      (1 - df_coverage$Staple * (1 - mean(intervention_list$Staple)))
-    ) |&gt;
-    mutate(
-      YLD =
-        case_when(
-          rei_name == &quot;Mild anemia&quot; ~ Pop_anaemic * 0.005,
-          rei_name == &quot;Moderate anemia&quot; ~ Pop_anaemic * 0.053,
-          rei_name == &quot;Severe anemia&quot; ~ Pop_anaemic * 0.150)
-    )
+  sims &lt;- list(
+    # Iron supplementation in pregnant women
+    simulator(df_2030, country, interventions[[1]]),
+    # Iron supplementation in all WRA
+    simulator(df_2030, country, interventions[[2]]),
+    # Staple food supplementation for all
+    simulator(df_2030, country, interventions[[3]]),
+    # Presumptive treatment for malaria in pregnant women
+    simulator(df_2030, country, interventions[[4]])
+  )
 
-df_post1</code></pre>
-<pre><code>## # A tibble: 3 × 10
-## # Groups:   location_name [1]
-##   location_name year_id rei_name        Pop_wra Pop_total Pop_pregnant
-##   &lt;chr&gt;           &lt;dbl&gt; &lt;chr&gt;             &lt;dbl&gt;     &lt;dbl&gt;        &lt;dbl&gt;
-## 1 Armenia          2030 Mild anemia     682266.  3016834.        23930
-## 2 Armenia          2030 Moderate anemia 682266.  3016834.        23930
-## 3 Armenia          2030 Severe anemia   682266.  3016834.        23930
-## # ℹ 4 more variables: Pop_pregnant_malaria &lt;dbl&gt;, Pop_pregnant_anaemic &lt;dbl&gt;,
-## #   Pop_anaemic &lt;dbl&gt;, YLD &lt;dbl&gt;</code></pre>
-<p>After which we can simply repeat the simulator without staple foods
-on the new data:</p>
-<pre class="r"><code># Call in functions
-# Run the simulator function for each intervention
-sims &lt;- list(
-  simulator(df_post1, country, interventions[[1]], &quot;Pop_pregnant&quot;, &quot;Pop_pregnant_anaemic&quot;), # Daily iron + FA in pregnant women
-  simulator(df_post1, country, interventions[[2]], &quot;Pop_wra&quot;, &quot;Pop_anaemic&quot;), # Daily Iron in WRA
-  simulator(df_post1, country, interventions[[3]], &quot;Pop_wra&quot;, &quot;Pop_anaemic&quot;) # Deworming tablets in WRA
-)
+  stage0[[i]] &lt;- do.call(rbind, sims) |&gt;
+    group_by(Intervention) |&gt;
+    summarise(Cost_per_YLD = mean(Cost_per_YLD)) |&gt;
+    mutate(Country = country) |&gt;
+    relocate(Country, .before = Intervention)
+  }
 
-stage2 &lt;- do.call(rbind, sims) |&gt;
-  group_by(Intervention) |&gt;
-  summarise(Cost_per_YLD = mean(Cost_per_YLD)) |&gt;
-  arrange(Cost_per_YLD)
-stage2</code></pre>
-<pre><code>## # A tibble: 3 × 2
-##   Intervention   Cost_per_YLD
-##   &lt;chr&gt;                 &lt;dbl&gt;
-## 1 Deworm                1125.
-## 2 DailyIron_WRA         3160.
-## 3 DailyIron_Preg        4556.</code></pre>
+cea &lt;- do.call(rbind, stage0) |&gt;
+  arrange(Country, Cost_per_YLD) |&gt;
+  left_join(WTP)
+remove(stage0, sims)</code></pre>
+<p>This demonstrates which intervention is the most cost-effective for a
+given country. The purpose of a league table is to identify what a
+decision-maker should rationally implement first.</p>
+<p>Now we can extract the top row for each country and feed this
+intervention into a loop over every country, provided the proposed
+intervention is cost-effective.</p>
+<pre class="r"><code># Identify intervention 1 for each country
+int1 &lt;- cea |&gt;
+  na.omit() |&gt;
+  filter(Cost_per_YLD &lt;= WTP) |&gt;
+  group_by(Country) |&gt;
+  slice(1)
+
+# Apply intervention 1 to each country if cost-effective using applicator function
+# Applicator function takes the above intervention table and extracts the intervention, then applies it to the baseline data provided
+df_stage1 &lt;- apply_intervention(base_data = df_2030, cea_table = int1)</code></pre>
+<p>Now we can have an updated dataset of our expected prevalence of each
+type of anaemia across each population of interest. This lets us re-do
+the simulator function to obtain an updated cost-effectiveness table,
+less the intervention we just applied.</p>
+<pre class="r"><code>gc()</code></pre>
+<pre><code>##           used (Mb) gc trigger  (Mb) max used  (Mb)
+## Ncells 1412470 75.5    2341509 125.1  2341509 125.1
+## Vcells 2936592 22.5    8395601  64.1  8395601  64.1</code></pre>
+<pre class="r"><code>cea0_1 &lt;- cea |&gt;
+  group_by(Country) |&gt;
+  slice(-1) |&gt;
+  select(, 1:2)
+
+stage1 &lt;- list()
+for (i in 1:length(countrylist)) {
+  country &lt;- countrylist[i]
+
+  sims &lt;- list(
+    # Intervention 1
+    simulator(df_stage1, country, cea0_1$Intervention[cea0_1$Country == country][1]),
+    # Intervention 2
+    simulator(df_stage1, country, cea0_1$Intervention[cea0_1$Country == country][2]),
+    # Intervention 3
+    simulator(df_stage1, country, cea0_1$Intervention[cea0_1$Country == country][3])
+  ) # Add interventions 4 and 5 when intermittent iron is available
+
+  stage1[[i]] &lt;- do.call(rbind, sims) |&gt;
+    group_by(Intervention) |&gt;
+    summarise(Cost_per_YLD = mean(Cost_per_YLD)) |&gt;
+    mutate(Country = country) |&gt;
+    relocate(Country, .before = Intervention) |&gt;
+    arrange(Cost_per_YLD)
+}
+
+cea1 &lt;- do.call(rbind, stage1) |&gt;
+  left_join(WTP)</code></pre>
+<pre><code>## Joining with `by = join_by(Country)`</code></pre>
+<pre class="r"><code>remove(stage1, sims, cea0_1)</code></pre>
+<p>Some countries have no more interventions to apply. These can now be
+removed from the analysis, and the next intervention will be applied to
+the remaining groups who have cost-effective interventions
+available.</p>
+<pre class="r"><code># Identify intervention 2
+int2 &lt;- cea1 |&gt;
+  na.omit() |&gt;
+  filter(Cost_per_YLD &lt;= WTP) |&gt;
+  group_by(Country) |&gt;
+  slice(1)
+
+# Apply intervention 2 to each country
+df_stage2 &lt;- apply_intervention(base_data = df_stage1, cea_table = int2)</code></pre>
+<p>We can now see that some countries have an unchanged prevalence
+estimate. This is because there are no more cost-effective interventions
+that can be done, or they simply are not able to apply them (e.g. the
+population does not eat a fortifiable staple food). We now get an
+updated CEA table following two interventions:</p>
+<pre class="r"><code>gc()</code></pre>
+<pre><code>##           used (Mb) gc trigger  (Mb) max used  (Mb)
+## Ncells 1413205 75.5    2341527 125.1  2341527 125.1
+## Vcells 2946443 22.5    8395604  64.1  8395604  64.1</code></pre>
+<pre class="r"><code>cea1_2 &lt;- cea1 |&gt;
+  group_by(Country) |&gt;
+  slice(-1) |&gt;
+  select(, 1:2)
+
+stage2 &lt;- list()
+for (i in 1:length(countrylist)) {
+  country &lt;- countrylist[i]
+
+  sims &lt;- list(
+    # Intervention 1
+    simulator(df_stage2, country, cea1_2$Intervention[cea1_2$Country == country][1]),
+    # Intervention 2
+    simulator(df_stage2, country, cea1_2$Intervention[cea1_2$Country == country][2])
+  ) # Add interventions 3 and 4 when intermittent iron is available
+
+  stage2[[i]] &lt;- do.call(rbind, sims) |&gt;
+    group_by(Intervention) |&gt;
+    summarise(Cost_per_YLD = mean(Cost_per_YLD)) |&gt;
+    mutate(Country = country) |&gt;
+    relocate(Country, .before = Intervention) |&gt;
+    arrange(Cost_per_YLD)
+}
+
+cea2 &lt;- do.call(rbind, stage2) |&gt;
+  left_join(WTP)</code></pre>
+<pre><code>## Joining with `by = join_by(Country)`</code></pre>
+<pre class="r"><code>remove(stage2, sims, cea1_2)</code></pre>
+<p>Repeating the apply_intervention() function, we get the new
+prevalence:</p>
+<pre class="r"><code># Identify intervention 3
+int3 &lt;- cea2 |&gt;
+  na.omit() |&gt;
+  filter(Cost_per_YLD &lt;= WTP) |&gt;
+  group_by(Country) |&gt;
+  slice(1)
+
+# Apply intervention 3 to each country
+df_stage3 &lt;- apply_intervention(base_data = df_stage2, cea_table = int3)</code></pre>
+<p>Most countries now have few or no treatments remaining. Re-applying
+the simulator function, we get:</p>
+<pre class="r"><code>gc()</code></pre>
+<pre><code>##           used (Mb) gc trigger  (Mb) max used  (Mb)
+## Ncells 1413551 75.5    2341535 125.1  2341535 125.1
+## Vcells 2954160 22.6    8395604  64.1  8395604  64.1</code></pre>
+<pre class="r"><code>cea2_3 &lt;- cea2 |&gt;
+  group_by(Country) |&gt;
+  slice(-1) |&gt;
+  select(, 1:2)
+
+stage3 &lt;- list()
+for (i in 1:length(countrylist)) {
+  country &lt;- countrylist[i]
+  
+  stage3[[i]] &lt;- simulator(df_stage3, country, cea2_3$Intervention[cea2_3$Country == country][1]) |&gt;
+    group_by(Intervention) |&gt;
+    summarise(Cost_per_YLD = mean(Cost_per_YLD)) |&gt;
+    mutate(Country = country) |&gt;
+    relocate(Country, .before = Intervention) |&gt;
+    arrange(Cost_per_YLD)
+}
+
+cea3 &lt;- do.call(rbind, stage3) |&gt;
+  left_join(WTP)</code></pre>
+<pre><code>## Joining with `by = join_by(Country)`</code></pre>
+<pre class="r"><code>remove(stage3, cea2_3)</code></pre>
+<p>Now we can do the final intervention:</p>
+<pre class="r"><code># Identify intervention 4
+int4 &lt;- cea3 |&gt;
+  na.omit() |&gt;
+  filter(Cost_per_YLD &lt;= WTP) |&gt;
+  group_by(Country) |&gt;
+  slice(1)
+
+# Apply intervention 4 to each country
+# In reality there is no intervention 4; no countries retain cost-effectiveness for the 4th intervention
+df_final &lt;- apply_intervention(base_data = df_stage3, cea_table = int4)</code></pre>
+<p>And that’s it! The next part is just visualising the change following
+the application of all interventions</p>
+<pre class="r"><code>df_change &lt;- df_final |&gt;
+  rename(Pop_pregnant_anaemic_post = Pop_pregnant_anaemic,
+         Pop_pregnant_malaria_anaemic_post = Pop_pregnant_malaria_anaemic,
+         Pop_anaemic_post = Pop_anaemic,
+         YLD_post = YLD) |&gt;
+  full_join(df_2030) |&gt;
+  mutate(Change_anaemic = Pop_anaemic_post - Pop_anaemic,
+         Pct_change_anaemic = Change_anaemic/Pop_anaemic) |&gt;
+  rename(Pop_pregnant_anaemic_pre = Pop_pregnant_anaemic,
+         Pop_pregnant_malaria_anaemic_pre = Pop_pregnant_malaria_anaemic,
+         Pop_anaemic_pre = Pop_anaemic,
+         YLD_pre = YLD)</code></pre>
+<pre><code>## Joining with `by = join_by(location_name, rei_name, Anaemia_rate, Pop_wra,
+## Pop_total, Pop_pregnant)`</code></pre>
+<pre class="r"><code>final_reduction &lt;- df_change |&gt;
+  group_by(location_name) |&gt;
+  summarise(anaemic_pre = sum(Pop_anaemic_pre),
+            anaemic_post = sum(Pop_anaemic_post)) |&gt;
+  mutate(Pct_change_anaemic = (anaemic_pre - anaemic_post)/anaemic_pre)
+
+meanval &lt;- paste0(&quot;Mean reduction in anaemia = &quot;, round(mean(final_reduction$Pct_change_anaemic), 2))
+
+p &lt;- final_reduction |&gt;
+  ggplot()
+
+p + 
+  geom_histogram(aes(Pct_change_anaemic), binwidth = 0.025) +
+  scale_x_continuous(breaks = seq(0, 1, 0.05)) +
+  geom_vline(aes(xintercept = mean(Pct_change_anaemic)), colour = &quot;red&quot;) +
+  annotate(&quot;text&quot;, label = meanval, 
+           x = mean(final_reduction$Pct_change_anaemic), 
+           y = 35,
+           colour = &quot;red&quot;)</code></pre>
+<p><img role="img" src="data:image/png;base64,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" width="672" /></p>
 
 
 

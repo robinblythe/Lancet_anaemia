@@ -5,7 +5,8 @@
 df_costs <- vroom("./Data/unit_costs.csv", show_col_types = FALSE) |>
   mutate(Country = case_when(
     Country == "Micronesia" ~ "Micronesia (Federated States of)",
-    .default = countryname(Country))) |>
+    .default = countryname(Country)
+  )) |>
   suppressWarnings() |>
   rename(location_name = Country) |>
   filter(location_name %in% df_2030$location_name)
@@ -14,14 +15,14 @@ df_costs <- vroom("./Data/unit_costs.csv", show_col_types = FALSE) |>
 # Effectiveness
 # Method of moments transformations applied where roughly symmetrical using https://aushsi.shinyapps.io/ShinyPrior/
 set.seed(888)
-intervention_list <- list(
+effectiveness <- list(
   Iron_Preg = rbeta(iter, shape1 = 11.468, shape2 = 19.786), # DAILY IRON
   Iron_WRA = rbeta(iter, shape1 = 12.198, shape2 = 16.861), # DAILY IRON
   Fortification = rnorm(iter, mean = 0.755, sd = 0.110),
-  #IntIron_WRA = rbeta(iter, shape1 = 14.525, shape2 = 6.285),
+  # IntIron_WRA = rbeta(iter, shape1 = 14.525, shape2 = 6.285),
   Antimalarial = rbeta(iter, shape1 = 337.799, shape2 = 36.688)
 )
-#intervention_list[["IntIron_Preg"]] <- rnorm(iter, mean = 1.320, sd = 0.245) * intervention_list$DailyIron_Preg
+# effectiveness[["IntIron_Preg"]] <- rnorm(iter, mean = 1.320, sd = 0.245) * effectiveness$DailyIron_Preg
 
 # Intervention coverage
 df_coverage <- vroom("./Data/all_coverage_data.csv", show_col_types = FALSE) |>
@@ -35,10 +36,11 @@ df_coverage <- df_coverage |>
   mutate(location_name = countryname(`Country/Economy`)) |>
   group_by(location_name) |>
   mutate(
-    Fortification = max(c(Staple_wheat, Staple_rice, Staple_maize)),
-    Iron_Preg = DailyIron,
-    Iron_WRA = DailyIron
+    Fortification = max(c(`Wheat flour fortification`, `Rice fortification`, `Maize fortification`)),
+    Iron_Preg = `Daily iron & folic acid supplementation`,
+    Iron_WRA = `Daily iron & folic acid supplementation`
   ) |>
+  rename(Antimalarial = `Antenatal antimalarial`) |>
   select(
     location_name, Iron_Preg, Iron_WRA, Fortification, Antimalarial
   ) |>
