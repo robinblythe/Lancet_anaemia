@@ -7,6 +7,12 @@ The paper will essentially show how target setting can be done using league tabl
 
 The visualisation plan is for league tables by region, with regions as facets on the Y-axis (vertical), and cost/DALY on the X-axis (horizontal) with a dashed line for each facet denoting the regional WTP and a density plot for each distribution of cost/YLD by simulation.
 
+New plan - set iter to 1, and repeat the analysis 100-1000 times. Extract the percent reduction for each country each time. This avoids the stochasticity problem but just increases runtime.
+
+Speed-up option - find a way to avoid running the intervention in the for loop if it's not in the CEA table.
+
+This should be submitted to IHEA 2025
+
 ```{r, warning = FALSE, message = FALSE}
 options(scipen = 999, digits = 5)
 
@@ -22,12 +28,12 @@ source("./99_Functions.R")
 # Read in 2030 population estimates
 df_2030 <- readRDS("./Data/est_2030.rds")
 
-# Using 10,000 iterations
-iter <- 10000
+# Using 1 iteration
+iter <- 1
 
 # Maximum possible coverage is 100% in this example
 # Note that if actual coverage > maximum coverage, there will be negative costs
-coverage_max <- 1
+coverage_max <- 0.9
 
 # Read in costs, interventions, coverage and filter by compatible countries
 source("./1_Interventions.R")
@@ -47,7 +53,7 @@ YLD_moderate <- 0.053
 YLD_severe <- 0.150
 
 # Which WTP threshold to use: lower or upper?
-Threshold <- "Upper"
+Threshold <- "Lower"
 WTP <- df_costs |>
   select(
     location_name,
@@ -84,7 +90,6 @@ $$
 First we need to do the initial setup. We create a league table for each country, ranking the 6 interventions by cost/YLD:
 
 ```{r, warning = FALSE, message = FALSE}
-gc()
 # Run the simulator function for each intervention:
 # Simulator takes prevalence data, country, intervention name, eligible population (for costs) and targeted population (for effects)
 
@@ -106,14 +111,9 @@ for (i in 1:length(countrylist)) {
 
   stage0[[i]] <- do.call(rbind, sims) |>
     group_by(Intervention) |>
-    summarise(
-      Cost_per_YLD_low = quantile(Cost_per_YLD, 0.025, na.rm = T),
-      Cost_per_YLD_high = quantile(Cost_per_YLD, 0.975, na.rm = T),
-      Cost_per_YLD = mean(Cost_per_YLD),
-      Total_spend = mean(Cost, na.rm = T)
-    ) |>
     mutate(Country = country) |>
-    relocate(Country, .before = Intervention)
+    relocate(Country, .before = Intervention) |>
+    select(-location_name)
 }
 
 cea <- do.call(rbind, stage0) |>
@@ -135,8 +135,8 @@ int1 <- cea |>
   slice(1)
 
 total_spend <- int1 |>
-  select(Country, Total_spend) |>
-  rename(Total_spend_1 = Total_spend)
+  select(Country, Cost) |>
+  rename(Total_spend_1 = Cost)
 
 # Apply intervention 1 to each country if cost-effective using applicator function
 # Applicator function takes the above intervention table and extracts the intervention, then applies it to the baseline data provided
@@ -147,15 +147,16 @@ Now we can have an updated dataset of our expected prevalence of each type of an
 This lets us re-do the simulator function to obtain an updated cost-effectiveness table, less the intervention we just applied.
 
 ```{r, warning = FALSE}
-gc()
 cea0_1 <- cea |>
   group_by(Country) |>
   slice(-1) |>
   select(, 1:2)
 
+countrylist_2 <- unique(int1$Country)
+
 stage1 <- list()
-for (i in 1:length(countrylist)) {
-  country <- countrylist[i]
+for (i in 1:length(countrylist_2)) {
+  country <- countrylist_2[i]
 
   sims <- list(
     # Intervention 1
@@ -168,20 +169,15 @@ for (i in 1:length(countrylist)) {
 
   stage1[[i]] <- do.call(rbind, sims) |>
     group_by(Intervention) |>
-    summarise(
-      Cost_per_YLD_low = quantile(Cost_per_YLD, 0.025, na.rm = T),
-      Cost_per_YLD_high = quantile(Cost_per_YLD, 0.975, na.rm = T),
-      Cost_per_YLD = mean(Cost_per_YLD),
-      Total_spend = mean(Cost, na.rm = T)
-    ) |>
     mutate(Country = country) |>
     relocate(Country, .before = Intervention) |>
+    select(-location_name) |>
     arrange(Cost_per_YLD)
 }
 
 cea1 <- do.call(rbind, stage1) |>
-  left_join(WTP)
-remove(stage1, sims, cea0_1)
+  left_join(WTP, by = join_by(Country))
+remove(stage1, sims, cea0_1, countrylist_2)
 ```
 
 Some countries have no more interventions to apply. These can now be removed from the analysis, and the next intervention will be applied to the remaining groups who have cost-effective interventions available.
@@ -196,9 +192,10 @@ int2 <- cea1 |>
   slice(1)
 
 total_spend <- int2 |>
-  select(Country, Total_spend) |>
-  rename(Total_spend_2 = Total_spend) |>
-  full_join(total_spend)
+  select(Country, Cost) |>
+  rename(Total_spend_2 = Cost) |>
+  full_join(total_spend,
+            by = join_by(Country))
   
 
 # Apply intervention 2 to each country
@@ -208,16 +205,16 @@ df_stage2 <- apply_intervention(base_data = df_stage1, cea_table = int2)
 We can now see that some countries have an unchanged prevalence estimate. This is because there are no more cost-effective interventions that can be done, or they simply are not able to apply them (e.g. the population does not eat a fortifiable staple food). We now get an updated CEA table following two interventions:
 
 ```{r, warning = FALSE}
-gc()
-
 cea1_2 <- cea1 |>
   group_by(Country) |>
   slice(-1) |>
   select(, 1:2)
 
+countrylist_3 <- unique(int2$Country)
+
 stage2 <- list()
-for (i in 1:length(countrylist)) {
-  country <- countrylist[i]
+for (i in 1:length(countrylist_3)) {
+  country <- countrylist_3[i]
 
   sims <- list(
     # Intervention 1
@@ -228,20 +225,16 @@ for (i in 1:length(countrylist)) {
 
   stage2[[i]] <- do.call(rbind, sims) |>
     group_by(Intervention) |>
-    summarise(
-      Cost_per_YLD_low = quantile(Cost_per_YLD, 0.025, na.rm = T),
-      Cost_per_YLD_high = quantile(Cost_per_YLD, 0.975, na.rm = T),
-      Cost_per_YLD = mean(Cost_per_YLD),
-      Total_spend = mean(Cost, na.rm = T)
-    ) |>
     mutate(Country = country) |>
     relocate(Country, .before = Intervention) |>
+    select(-location_name) |>
     arrange(Cost_per_YLD)
 }
 
 cea2 <- do.call(rbind, stage2) |>
-  left_join(WTP)
-remove(stage2, sims, cea1_2)
+  left_join(WTP,
+            by = join_by(Country))
+remove(stage2, sims, cea1_2, countrylist_3)
 ```
 
 Repeating the apply_intervention() function, we get the new prevalence:
@@ -255,9 +248,10 @@ int3 <- cea2 |>
   slice(1)
 
 total_spend <- int3 |>
-  select(Country, Total_spend) |>
-  rename(Total_spend_3 = Total_spend) |>
-  full_join(total_spend)
+  select(Country, Cost) |>
+  rename(Total_spend_3 = Cost) |>
+  full_join(total_spend,
+            by = join_by(Country))
 
 # Apply intervention 3 to each country
 df_stage3 <- apply_intervention(base_data = df_stage2, cea_table = int3)
@@ -266,33 +260,29 @@ df_stage3 <- apply_intervention(base_data = df_stage2, cea_table = int3)
 Most countries now have few or no treatments remaining. Re-applying the simulator function, we get:
 
 ```{r}
-gc()
-
 cea2_3 <- cea2 |>
   group_by(Country) |>
   slice(-1) |>
   select(, 1:2)
 
+countrylist_4 <- unique(int3$Country)
+
 stage3 <- list()
-for (i in 1:length(countrylist)) {
-  country <- countrylist[i]
+for (i in 1:length(countrylist_4)) {
+  country <- countrylist_4[i]
 
   stage3[[i]] <- simulator(df_stage3, country, cea2_3$Intervention[cea2_3$Country == country][1]) |>
     group_by(Intervention) |>
-    summarise(
-      Cost_per_YLD_low = quantile(Cost_per_YLD, 0.025, na.rm = T),
-      Cost_per_YLD_high = quantile(Cost_per_YLD, 0.975, na.rm = T),
-      Cost_per_YLD = mean(Cost_per_YLD),
-      Total_spend = mean(Cost, na.rm = T)
-    ) |>
     mutate(Country = country) |>
     relocate(Country, .before = Intervention) |>
+    select(-location_name) |>
     arrange(Cost_per_YLD)
 }
 
 cea3 <- do.call(rbind, stage3) |>
-  left_join(WTP)
-remove(stage3, cea2_3)
+  left_join(WTP,
+            by = join_by(Country))
+remove(stage3, cea2_3, countrylist_4)
 ```
 
 Now we can do the final intervention:
@@ -306,9 +296,10 @@ int4 <- cea3 |>
   slice(1)
 
 total_spend <- int4 |>
-  select(Country, Total_spend) |>
-  rename(Total_spend_4 = Total_spend) |>
-  full_join(total_spend)
+  select(Country, Cost) |>
+  rename(Total_spend_4 = Cost) |>
+  full_join(total_spend,
+            by = join_by(Country))
 
 # Apply intervention 4 to each country
 # In reality there is no intervention 4; no countries retain cost-effectiveness for the 4th intervention
@@ -356,36 +347,8 @@ final_reduction <- df_change |>
   left_join(total_spend[,c("Country", "Total_spend_all")])
 
 meanval <- paste0("Mean reduction in anaemia = ", round(mean(final_reduction$Pct_change_anaemic), 2))
+meanval
 
-p <- final_reduction |>
-  ggplot()
-
-p +
-  geom_histogram(aes(Pct_change_anaemic), binwidth = 0.025) +
-  scale_x_continuous(breaks = seq(0, 1, 0.05)) +
-  geom_vline(aes(xintercept = mean(Pct_change_anaemic)), colour = "red") +
-  annotate("text",
-    label = meanval,
-    x = mean(final_reduction$Pct_change_anaemic),
-    y = 35,
-    colour = "red"
-  )
-
-p +
-  geom_histogram(aes(x = Total_spend_all), binwidth = 25000000) +
-  scale_x_continuous(label = comma)
-
-p +
-  geom_point(aes(x = Pct_change_anaemic, y = Total_spend_all)) + 
-  scale_x_continuous(breaks = seq(0, 1, 0.05)) +
-  scale_y_continuous(label = comma) +
-  geom_vline(aes(xintercept = mean(Pct_change_anaemic)), colour = "red") +
-  annotate("text",
-    label = meanval,
-    x = mean(final_reduction$Pct_change_anaemic),
-    y = 2e9,
-    colour = "red"
-  ) 
 ```
 
 
