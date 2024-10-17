@@ -1,4 +1,9 @@
 # Create dataset to use for analysis
+source("99_Functions.R")
+library(tidyverse)
+library(vroom)
+library(countrycode)
+library(zoo)
 
 # Define agegroup, year of analysis
 agegroup <- seq(8, 14, 1) # Women of reproductive age group
@@ -178,8 +183,41 @@ df_2030 <- left_join(df_analysis, malaria) |>
   ungroup()
 
 
+# Costs
+df_costs <- vroom("./Data/unit_costs.csv", show_col_types = FALSE) |>
+  mutate(Country = case_when(
+    Country == "Micronesia" ~ "Micronesia (Federated States of)",
+    .default = countryname(Country)
+  )) |>
+  suppressWarnings() |>
+  rename(location_name = Country) |>
+  filter(location_name %in% df_2030$location_name)
 
-remove(gbd, preds, i, pregnancy, agegroup, countries, malaria, pred_year, rollup, df_analysis) |>
-  suppressWarnings()
+df_coverage <- vroom("./Data/all_coverage_data.csv", show_col_types = FALSE) |>
+  na.omit() |>
+  suppressMessages()
+Encoding(df_coverage$`Country/Economy`) <- "UTF-8"
+df_coverage$`Country/Economy` <- iconv(df_coverage$`Country/Economy`, "UTF-8", "UTF-8", sub = "")
+df_coverage$`Country/Economy`[df_coverage$`Country/Economy` == "Curaao"] <- "Curacao"
+
+df_coverage <- df_coverage |>
+  mutate(location_name = countryname(`Country/Economy`)) |>
+  group_by(location_name) |>
+  mutate(
+    Fortification = max(c(`Wheat flour fortification`, `Rice fortification`, `Maize fortification`)),
+    Iron_Preg = `Daily iron & folic acid supplementation`,
+    Iron_WRA = `Daily iron & folic acid supplementation`
+  ) |>
+  rename(Antimalarial = `Antenatal antimalarial`) |>
+  select(
+    location_name, Iron_Preg, Iron_WRA, Fortification, Antimalarial
+  ) |>
+  ungroup()
 
 saveRDS(df_2030, file = "./Data/est_2030.rds")
+saveRDS(df_costs, file = "./Data/costs.rds")
+saveRDS(df_coverage, file = "./Data/coverage.rds")
+
+rm(list = ls())
+gc()
+.rs.restartR()

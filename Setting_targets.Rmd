@@ -1,42 +1,40 @@
 ---
 title: 'Setting targets in anaemia'
+editor_options: 
+  chunk_output_type: console
 ---
 
-This markdown file describes the analysis plan for the secondary target setting paper.  
-The paper will essentially show how target setting can be done using league tables of viable interventions, with a country's cost per YLD averted. This will prioritise an intervention to be done first up to the maximum viable coverage, then remove it from the list and repeat the league table exercise until all interventions are applied, costs are too high, or cost-effectiveness is not achievable.  
+This markdown file walks through the analysis for the target setting paper.  
+The paper will essentially show how target setting can be done using league tables of viable interventions, with a country's cost per YLD averted and WTP threshold set as the decision rule for implementing interventions sequentially. This will prioritise an intervention to be done first up to the maximum viable coverage, then remove it from the list and repeat the league table exercise until all cost-effective interventions are applied.
 
-The visualisation plan is for league tables by region, with regions as facets on the Y-axis (vertical), and cost/DALY on the X-axis (horizontal) with a dashed line for each facet denoting the regional WTP and a density plot for each distribution of cost/YLD by simulation.
+This file takes the input data (prevalence, costs, and coverage) and repeatedly draws from these as distributions. It will repeat the simulation n times, with a different estimate for cost and effectiveness each time. This ensures that there isn't a 'fanning' effect where the low or high quantile is taken every time, leading to increasingly wider intervals as every intervention is done.
 
-New plan - set iter to 1, and repeat the analysis 100-1000 times. Extract the percent reduction for each country each time. This avoids the stochasticity problem but just increases runtime.
-
-Speed-up option - find a way to avoid running the intervention in the for loop if it's not in the CEA table.
-
-This should be submitted to IHEA 2025
+This should be submitted to IHEA 2025 and will form the basis of our recommendation for section 6 of the Lancet commission.
 
 ```{r, warning = FALSE, message = FALSE}
 options(scipen = 999, digits = 5)
 
-library(vroom)
 library(countrycode)
 library(EnvStats)
-library(zoo)
 library(tidyverse)
 library(scales)
 
+# Load helper functions
 source("./99_Functions.R")
 
-# Read in 2030 population estimates
+# Read in 2030 population estimates, costs, and coverage
 df_2030 <- readRDS("./Data/est_2030.rds")
+df_costs <- readRDS("./Data/costs.rds")
+df_coverage <- readRDS("./Data/coverage.rds")
 
-# Using 1 iteration
-iter <- 1
+# Using 1 iteration per draw
+iter = 1
 
-# Maximum possible coverage is 100% in this example
+# Maximum possible coverage is 90% in this example
 # Note that if actual coverage > maximum coverage, there will be negative costs
-coverage_max <- 0.9
+coverage_max = 0.9
 
-# Read in costs, interventions, coverage and filter by compatible countries
-source("./1_Interventions.R")
+# Filter by countries with data for all three input data frames
 df_2030 <- df_2030 |>
   filter(location_name %in% Reduce(intersect, list(
     df_2030$location_name,
@@ -48,20 +46,21 @@ df_2030 <- df_2030 |>
 countrylist <- unique(df_2030$location_name)
 
 # YLDs from anaemia:
-YLD_mild <- 0.005
-YLD_moderate <- 0.053
-YLD_severe <- 0.150
+YLD_mild = 0.005
+YLD_moderate = 0.053
+YLD_severe = 0.150
 
-# Which WTP threshold to use: lower or upper?
-Threshold <- "Lower"
+# Which WTP threshold to use?
+# Options: Opp_Lower, Opp_Upper, HCFI_Lower, HCFI_Upper
+Threshold = "Lower"
 WTP <- df_costs |>
   select(
     location_name,
-    paste0(Threshold, "_WTP")
+    paste0("WTP_", Threshold)
   ) |>
   rename(
     Country = location_name,
-    WTP = paste0(Threshold, "_WTP")
+    WTP = paste0("WTP_", Threshold)
   )
 ```
 
@@ -87,267 +86,64 @@ $$
 - Pick the top option and then remove that intervention from the list  
 - Repeat
 
-First we need to do the initial setup. We create a league table for each country, ranking the 6 interventions by cost/YLD:
-
-```{r, warning = FALSE, message = FALSE}
-# Run the simulator function for each intervention:
-# Simulator takes prevalence data, country, intervention name, eligible population (for costs) and targeted population (for effects)
-
-# Run analysis for each country
-stage0 <- list()
-for (i in 1:length(countrylist)) {
-  country <- countrylist[i]
-
-  sims <- list(
-    # Iron supplementation in pregnant women
-    simulator(df_2030, country, interventions[[1]]),
-    # Iron supplementation in all WRA
-    simulator(df_2030, country, interventions[[2]]),
-    # Staple food supplementation for all
-    simulator(df_2030, country, interventions[[3]]),
-    # Presumptive treatment for malaria in pregnant women
-    simulator(df_2030, country, interventions[[4]])
-  )
-
-  stage0[[i]] <- do.call(rbind, sims) |>
-    group_by(Intervention) |>
-    mutate(Country = country) |>
-    relocate(Country, .before = Intervention) |>
-    select(-location_name)
-}
-
-cea <- do.call(rbind, stage0) |>
-  arrange(Country, Cost_per_YLD) |>
-  left_join(WTP)
-remove(stage0, sims)
-```
-
-This demonstrates which intervention is the most cost-effective for a given country. The purpose of a league table is to identify what a decision-maker should rationally implement first.
-
-Now we can extract the top row for each country and feed this intervention into a loop over every country, provided the proposed intervention is cost-effective.
-
 ```{r}
-# Identify intervention 1 for each country
-int1 <- cea |>
-  na.omit() |>
-  filter(Cost_per_YLD <= WTP) |>
-  group_by(Country) |>
-  slice(1)
+# Set number of iterations
+n <- 200
 
-total_spend <- int1 |>
-  select(Country, Cost) |>
-  rename(Total_spend_1 = Cost)
+# Create output lists of reductions and costs
+final_reduction <- list()
+final_cost <- list()
 
-# Apply intervention 1 to each country if cost-effective using applicator function
-# Applicator function takes the above intervention table and extracts the intervention, then applies it to the baseline data provided
-df_stage1 <- apply_intervention(base_data = df_2030, cea_table = int1)
-```
-
-Now we can have an updated dataset of our expected prevalence of each type of anaemia across each population of interest.
-This lets us re-do the simulator function to obtain an updated cost-effectiveness table, less the intervention we just applied.
-
-```{r, warning = FALSE}
-cea0_1 <- cea |>
-  group_by(Country) |>
-  slice(-1) |>
-  select(, 1:2)
-
-countrylist_2 <- unique(int1$Country)
-
-stage1 <- list()
-for (i in 1:length(countrylist_2)) {
-  country <- countrylist_2[i]
-
-  sims <- list(
-    # Intervention 1
-    simulator(df_stage1, country, cea0_1$Intervention[cea0_1$Country == country][1]),
-    # Intervention 2
-    simulator(df_stage1, country, cea0_1$Intervention[cea0_1$Country == country][2]),
-    # Intervention 3
-    simulator(df_stage1, country, cea0_1$Intervention[cea0_1$Country == country][3])
-  ) # Add interventions 4 and 5 when intermittent iron is available
-
-  stage1[[i]] <- do.call(rbind, sims) |>
-    group_by(Intervention) |>
-    mutate(Country = country) |>
-    relocate(Country, .before = Intervention) |>
-    select(-location_name) |>
-    arrange(Cost_per_YLD)
-}
-
-cea1 <- do.call(rbind, stage1) |>
-  left_join(WTP, by = join_by(Country))
-remove(stage1, sims, cea0_1, countrylist_2)
-```
-
-Some countries have no more interventions to apply. These can now be removed from the analysis, and the next intervention will be applied to the remaining groups who have cost-effective interventions available.
-
-
-```{r}
-# Identify intervention 2
-int2 <- cea1 |>
-  na.omit() |>
-  filter(Cost_per_YLD <= WTP) |>
-  group_by(Country) |>
-  slice(1)
-
-total_spend <- int2 |>
-  select(Country, Cost) |>
-  rename(Total_spend_2 = Cost) |>
-  full_join(total_spend,
-            by = join_by(Country))
+# Repeat model n times
+for (j in 1:n) {
+  source("./1_Run_model.R")
   
+  final_cost[[j]] <- total_spend %>%
+    replace(is.na(.), 0) |>
+    mutate(
+      Total_spend_all =
+        Total_spend_1 +
+          Total_spend_2 +
+          Total_spend_3 +
+          Total_spend_4
+    )
 
-# Apply intervention 2 to each country
-df_stage2 <- apply_intervention(base_data = df_stage1, cea_table = int2)
-```
-
-We can now see that some countries have an unchanged prevalence estimate. This is because there are no more cost-effective interventions that can be done, or they simply are not able to apply them (e.g. the population does not eat a fortifiable staple food). We now get an updated CEA table following two interventions:
-
-```{r, warning = FALSE}
-cea1_2 <- cea1 |>
-  group_by(Country) |>
-  slice(-1) |>
-  select(, 1:2)
-
-countrylist_3 <- unique(int2$Country)
-
-stage2 <- list()
-for (i in 1:length(countrylist_3)) {
-  country <- countrylist_3[i]
-
-  sims <- list(
-    # Intervention 1
-    simulator(df_stage2, country, cea1_2$Intervention[cea1_2$Country == country][1]),
-    # Intervention 2
-    simulator(df_stage2, country, cea1_2$Intervention[cea1_2$Country == country][2])
-  ) # Add interventions 3 and 4 when intermittent iron is available
-
-  stage2[[i]] <- do.call(rbind, sims) |>
-    group_by(Intervention) |>
-    mutate(Country = country) |>
-    relocate(Country, .before = Intervention) |>
-    select(-location_name) |>
-    arrange(Cost_per_YLD)
+  final_reduction[[j]] <- df_final |>
+    rename(
+      Pop_pregnant_anaemic_post = Pop_pregnant_anaemic,
+      Pop_pregnant_malaria_anaemic_post = Pop_pregnant_malaria_anaemic,
+      Pop_anaemic_post = Pop_anaemic,
+      YLD_post = YLD,
+      Country = location_name
+    ) |>
+    full_join(df_2030, 
+              by = join_by(rei_name, Anaemia_rate, Pop_wra, Pop_total, Pop_pregnant)) |>
+    mutate(
+      Change_anaemic = Pop_anaemic_post - Pop_anaemic,
+      Pct_change_anaemic = Change_anaemic / Pop_anaemic
+    ) |>
+    rename(
+      Pop_pregnant_anaemic_pre = Pop_pregnant_anaemic,
+      Pop_pregnant_malaria_anaemic_pre = Pop_pregnant_malaria_anaemic,
+      Pop_anaemic_pre = Pop_anaemic,
+      YLD_pre = YLD
+    ) |>
+    group_by(Country) |>
+    summarise(
+      anaemic_pre = sum(Pop_anaemic_pre),
+      anaemic_post = sum(Pop_anaemic_post)
+    ) |>
+    mutate(Pct_change_anaemic = (anaemic_pre - anaemic_post) / anaemic_pre)
+  
+  print(paste0("Iteration ", j, " done"))
 }
-
-cea2 <- do.call(rbind, stage2) |>
-  left_join(WTP,
-            by = join_by(Country))
-remove(stage2, sims, cea1_2, countrylist_3)
 ```
 
-Repeating the apply_intervention() function, we get the new prevalence:
+The visualisation plan is for league tables by region, with regions as facets on the Y-axis (vertical), and cost/DALY on the X-axis (horizontal) with a dashed line for each facet denoting the regional WTP and a density plot for each distribution of cost/YLD by simulation.
 
 ```{r}
-# Identify intervention 3
-int3 <- cea2 |>
-  na.omit() |>
-  filter(Cost_per_YLD <= WTP) |>
-  group_by(Country) |>
-  slice(1)
+change <- do.call(rbind, final_reduction)$Pct_change_anaemic
 
-total_spend <- int3 |>
-  select(Country, Cost) |>
-  rename(Total_spend_3 = Cost) |>
-  full_join(total_spend,
-            by = join_by(Country))
-
-# Apply intervention 3 to each country
-df_stage3 <- apply_intervention(base_data = df_stage2, cea_table = int3)
-```
-
-Most countries now have few or no treatments remaining. Re-applying the simulator function, we get:
-
-```{r}
-cea2_3 <- cea2 |>
-  group_by(Country) |>
-  slice(-1) |>
-  select(, 1:2)
-
-countrylist_4 <- unique(int3$Country)
-
-stage3 <- list()
-for (i in 1:length(countrylist_4)) {
-  country <- countrylist_4[i]
-
-  stage3[[i]] <- simulator(df_stage3, country, cea2_3$Intervention[cea2_3$Country == country][1]) |>
-    group_by(Intervention) |>
-    mutate(Country = country) |>
-    relocate(Country, .before = Intervention) |>
-    select(-location_name) |>
-    arrange(Cost_per_YLD)
-}
-
-cea3 <- do.call(rbind, stage3) |>
-  left_join(WTP,
-            by = join_by(Country))
-remove(stage3, cea2_3, countrylist_4)
-```
-
-Now we can do the final intervention:
-
-```{r}
-# Identify intervention 4
-int4 <- cea3 |>
-  na.omit() |>
-  filter(Cost_per_YLD <= WTP) |>
-  group_by(Country) |>
-  slice(1)
-
-total_spend <- int4 |>
-  select(Country, Cost) |>
-  rename(Total_spend_4 = Cost) |>
-  full_join(total_spend,
-            by = join_by(Country))
-
-# Apply intervention 4 to each country
-# In reality there is no intervention 4; no countries retain cost-effectiveness for the 4th intervention
-df_final <- apply_intervention(base_data = df_stage3, cea_table = int4)
-```
-
-And that's it! The next part is just visualising the change following the application of all interventions
-
-```{r}
-df_change <- df_final |>
-  rename(
-    Pop_pregnant_anaemic_post = Pop_pregnant_anaemic,
-    Pop_pregnant_malaria_anaemic_post = Pop_pregnant_malaria_anaemic,
-    Pop_anaemic_post = Pop_anaemic,
-    YLD_post = YLD
-  ) |>
-  full_join(df_2030) |>
-  mutate(
-    Change_anaemic = Pop_anaemic_post - Pop_anaemic,
-    Pct_change_anaemic = Change_anaemic / Pop_anaemic
-  ) |>
-  rename(
-    Pop_pregnant_anaemic_pre = Pop_pregnant_anaemic,
-    Pop_pregnant_malaria_anaemic_pre = Pop_pregnant_malaria_anaemic,
-    Pop_anaemic_pre = Pop_anaemic,
-    YLD_pre = YLD
-  )
-
-total_spend <- total_spend %>%
-  replace(is.na(.), 0) |>
-  mutate(Total_spend_all = 
-           Total_spend_1 +
-           Total_spend_2 +
-           Total_spend_3 +
-           Total_spend_4)
-
-final_reduction <- df_change |>
-  rename(Country = location_name) |>
-  group_by(Country) |>
-  summarise(
-    anaemic_pre = sum(Pop_anaemic_pre),
-    anaemic_post = sum(Pop_anaemic_post)
-  ) |>
-  mutate(Pct_change_anaemic = (anaemic_pre - anaemic_post) / anaemic_pre) |>
-  left_join(total_spend[,c("Country", "Total_spend_all")])
-
-meanval <- paste0("Mean reduction in anaemia = ", round(mean(final_reduction$Pct_change_anaemic), 2))
-meanval
 
 ```
 
