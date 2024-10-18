@@ -1,15 +1,15 @@
 # Simulate effectiveness
 # Method of moments transformations applied where roughly symmetrical
 # Using https://aushsi.shinyapps.io/ShinyPrior/
+# Effectiveness of scaling up iron supplements taken from https://doi.org/10.21203/rs.3.rs-3897976/v1
 effectiveness <- list(
-  Iron_Preg = rbeta(iter, shape1 = 11.468, shape2 = 19.786), # DAILY IRON
-  Iron_WRA = rbeta(iter, shape1 = 12.198, shape2 = 16.861), # DAILY IRON
+  Iron_Preg = rbeta(iter, shape1 = 11.468, shape2 = 19.786) + 0.35,  # Daily iron
+  Iron_WRA = rbeta(iter, shape1 = 12.198, shape2 = 16.861) + 0.35, # DAILY IRON
   Fortification = rnorm(iter, mean = 0.755, sd = 0.110),
   # IntIron_WRA = rbeta(iter, shape1 = 14.525, shape2 = 6.285),
   Antimalarial = rbeta(iter, shape1 = 337.799, shape2 = 36.688)
 )
 # effectiveness[["IntIron_Preg"]] <- rnorm(iter, mean = 1.320, sd = 0.245) * effectiveness$DailyIron_Preg
-
 
 # Run the simulator function for each intervention:
 # Simulator takes prevalence data, country, intervention name, eligible population (for costs)

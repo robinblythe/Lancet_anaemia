@@ -82,20 +82,21 @@ simulator <- function(prev_data, country, intervention) {
     intervention %in% c("Iron_WRA", "Fortification") ~ "Pop_anaemic",
     intervention == "Antimalarial" ~ "Pop_pregnant_malaria_anaemic"
   )
-
+  
 
   df <- tibble(
     location_name = country,
     Intervention = intervention,
-    Cost =
-      rtri(iter,
-        min = df_costs[[paste0(intervention, "_Low")]],
-        max = df_costs[[paste0(intervention, "_High")]],
-        mode = df_costs[[paste0(intervention, "_Base")]]
-      ) *
-        max(prev_data[[Pop_eligible]]) *
-        (coverage_max - df_coverage[[intervention]]),
 
+    Cost = 
+      rtri(iter,
+           min = df_costs[[paste0(intervention, "_Low")]],
+           max = df_costs[[paste0(intervention, "_High")]],
+           mode = df_costs[[paste0(intervention, "_Base")]]
+           ) *
+      max(prev_data[[Pop_eligible]]) *
+        (coverage_max - df_coverage[[intervention]]),
+    
     # Effectiveness determined by daily or intermittent
     Eff =
       prev_data[[Pop_targeted]][prev_data$rei_name == "Mild anemia"] *
@@ -112,17 +113,22 @@ simulator <- function(prev_data, country, intervention) {
           (1 - coverage_max * (1 - effectiveness[[intervention]])) /
           (1 - df_coverage[[intervention]] * (1 - effectiveness[[intervention]])) *
           YLD_severe,
+    
     Cost_per_YLD = Cost / Eff
-  )
+    
+  ) 
 }
 
 
 # Intervention applicator function
 apply_intervention <- function(base_data, cea_table) {
+  
   stage <- list()
-
-  for (i in 1:length(countrylist)) {
+  
+  for (i in 1:length(countrylist)){
+    
     if (countrylist[i] %in% cea_table$Country) {
+      
       # Apply the intervention using the formula in the rmarkdown file
       int <- subset(cea_table, Country == countrylist[i])
 
@@ -133,35 +139,34 @@ apply_intervention <- function(base_data, cea_table) {
             Pop_pregnant_malaria_anaemic *
               (1 - coverage_max * (1 - mean(effectiveness[[int$Intervention]]))) /
               (1 - df_coverage[[int$Intervention]][df_coverage$location_name == countrylist[i]] *
-                (1 - mean(effectiveness[[int$Intervention]])))
-          ),
+                 (1 - mean(effectiveness[[int$Intervention]])))),
+          
           Pop_pregnant_anaemic_n = case_when(
             int$Intervention == "Antimalarial" ~ Pop_pregnant_anaemic - (Pop_pregnant_malaria_anaemic - Pop_pregnant_malaria_anaemic_n),
             .default = ceiling(
               Pop_pregnant_anaemic *
                 (1 - coverage_max * (1 - mean(effectiveness[[int$Intervention]]))) /
                 (1 - df_coverage[[int$Intervention]][df_coverage$location_name == countrylist[i]] *
-                  (1 - mean(effectiveness[[int$Intervention]])))
-            )
-          ),
-          Pop_anaemic_n = case_when(
-            int$Intervention == "Antimalarial" ~ Pop_anaemic - (Pop_pregnant_malaria_anaemic - Pop_pregnant_malaria_anaemic_n),
-            int$Intervention %in% c("DailyIron_Preg", "IntIron_Preg") ~ Pop_anaemic - (Pop_pregnant_anaemic - Pop_pregnant_anaemic_n),
-            .default = ceiling(
-              Pop_anaemic *
-                (1 - coverage_max * (1 - mean(effectiveness[[int$Intervention]]))) /
-                (1 - df_coverage[[int$Intervention]][df_coverage$location_name == countrylist[i]] *
-                  (1 - mean(effectiveness[[int$Intervention]])))
-            )
-          ),
+                   (1 - mean(effectiveness[[int$Intervention]]))))),
+            
+            Pop_anaemic_n = case_when(
+              int$Intervention == "Antimalarial" ~ Pop_anaemic - (Pop_pregnant_malaria_anaemic - Pop_pregnant_malaria_anaemic_n),
+              int$Intervention %in% c("DailyIron_Preg", "IntIron_Preg") ~ Pop_anaemic - (Pop_pregnant_anaemic - Pop_pregnant_anaemic_n),
+              .default = ceiling(
+                Pop_anaemic *
+                  (1 - coverage_max * (1 - mean(effectiveness[[int$Intervention]]))) /
+                  (1 - df_coverage[[int$Intervention]][df_coverage$location_name == countrylist[i]] *
+                     (1 - mean(effectiveness[[int$Intervention]]))))
+              ),
           YLD_n =
             case_when(
               rei_name == "Mild anemia" ~ Pop_anaemic_n * 0.005,
               rei_name == "Moderate anemia" ~ Pop_anaemic_n * 0.053,
               rei_name == "Severe anemia" ~ Pop_anaemic_n * 0.150
+              )
             )
-        )
     } else {
+      
       df_post <- base_data |>
         filter(location_name == countrylist[i]) |>
         mutate(
@@ -188,3 +193,5 @@ apply_intervention <- function(base_data, cea_table) {
       YLD = YLD_n
     )
 }
+
+

@@ -18,6 +18,8 @@ library(countrycode)
 library(EnvStats)
 library(tidyverse)
 library(scales)
+library(foreach)
+library(doParallel)
 
 # Load helper functions
 source("./99_Functions.R")
@@ -28,11 +30,11 @@ df_costs <- readRDS("./Data/costs.rds")
 df_coverage <- readRDS("./Data/coverage.rds")
 
 # Using 1 iteration per draw
-iter = 1
+iter <- 1
 
 # Maximum possible coverage is 90% in this example
 # Note that if actual coverage > maximum coverage, there will be negative costs
-coverage_max = 0.9
+coverage_max <- 0.9
 
 # Filter by countries with data for all three input data frames
 df_2030 <- df_2030 |>
@@ -46,13 +48,14 @@ df_2030 <- df_2030 |>
 countrylist <- unique(df_2030$location_name)
 
 # YLDs from anaemia:
-YLD_mild = 0.005
-YLD_moderate = 0.053
-YLD_severe = 0.150
+YLD_mild <- 0.005
+YLD_moderate <- 0.053
+YLD_severe <- 0.150
 
 # Which WTP threshold to use?
-# Options: Opp_Lower, Opp_Upper, HCFI_Lower, HCFI_Upper
-Threshold = "Lower"
+WTP_list <- c("Opp_Lower", "Opp_Upper", "HCFI_Lower", "HCFI_Upper")
+Threshold = WTP_list[2]
+
 WTP <- df_costs |>
   select(
     location_name,
@@ -90,24 +93,19 @@ $$
 # Set number of iterations
 n <- 200
 
-# Create output lists of reductions and costs
+# Prepare parallel computing
+cores = detectCores()
+cl <- makeCluster(25)
+registerDoParallel(cl)
+
+# Create output list
 final_reduction <- list()
-final_cost <- list()
 
-# Repeat model n times
-for (j in 1:n) {
-  source("./1_Run_model.R")
+# Repeat model n times - may decide to add costs back in?
+final_reduction <- foreach(j = 1:n, .export = ls(), .packages = c("tidyverse", "EnvStats")) %dopar% {
+
+  source("1_Run_model.R", local = T)
   
-  final_cost[[j]] <- total_spend %>%
-    replace(is.na(.), 0) |>
-    mutate(
-      Total_spend_all =
-        Total_spend_1 +
-          Total_spend_2 +
-          Total_spend_3 +
-          Total_spend_4
-    )
-
   final_reduction[[j]] <- df_final |>
     rename(
       Pop_pregnant_anaemic_post = Pop_pregnant_anaemic,
@@ -133,16 +131,29 @@ for (j in 1:n) {
       anaemic_pre = sum(Pop_anaemic_pre),
       anaemic_post = sum(Pop_anaemic_post)
     ) |>
-    mutate(Pct_change_anaemic = (anaemic_pre - anaemic_post) / anaemic_pre)
+    mutate(Pct_change_anaemic = (anaemic_pre - anaemic_post) / anaemic_pre,
+           Iteration = j)
   
-  print(paste0("Iteration ", j, " done"))
 }
+
+change <- do.call(rbind, final_reduction)
+
+
 ```
 
 The visualisation plan is for league tables by region, with regions as facets on the Y-axis (vertical), and cost/DALY on the X-axis (horizontal) with a dashed line for each facet denoting the regional WTP and a density plot for each distribution of cost/YLD by simulation.
 
 ```{r}
-change <- do.call(rbind, final_reduction)$Pct_change_anaemic
+#Some extra code for now
+final_cost[[j]] <- total_spend %>%
+    replace(is.na(.), 0) |>
+    mutate(
+      Total_spend_all =
+        Total_spend_1 +
+          Total_spend_2 +
+          Total_spend_3 +
+          Total_spend_4
+    )
 
 
 ```
