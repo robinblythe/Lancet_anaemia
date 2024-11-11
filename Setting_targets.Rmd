@@ -101,7 +101,8 @@ registerDoParallel(cl)
 # Create output list
 final_reduction <- list()
 
-# Repeat model n times - may decide to add costs back in?
+# Repeat model n times
+set.seed(888)
 final_reduction <- foreach(j = 1:n, .export = ls(), .packages = c("tidyverse", "EnvStats")) %dopar% {
 
   source("1_Run_model.R", local = T)
@@ -111,16 +112,17 @@ final_reduction <- foreach(j = 1:n, .export = ls(), .packages = c("tidyverse", "
       Pop_pregnant_anaemic_post = Pop_pregnant_anaemic,
       Pop_pregnant_malaria_anaemic_post = Pop_pregnant_malaria_anaemic,
       Pop_anaemic_post = Pop_anaemic,
-      YLD_post = YLD,
-      Country = location_name
+      YLD_post = YLD
     ) |>
     full_join(df_2030, 
-              by = join_by(rei_name, Anaemia_rate, Pop_wra, Pop_total, Pop_pregnant)) |>
+              by = join_by(location_name, rei_name, Anaemia_rate, Pop_wra, Pop_total, Pop_pregnant)) |>
     mutate(
       Change_anaemic = Pop_anaemic_post - Pop_anaemic,
       Pct_change_anaemic = Change_anaemic / Pop_anaemic
     ) |>
     rename(
+      Country = location_name,
+      Anaemia_severity = rei_name,
       Pop_pregnant_anaemic_pre = Pop_pregnant_anaemic,
       Pop_pregnant_malaria_anaemic_pre = Pop_pregnant_malaria_anaemic,
       Pop_anaemic_pre = Pop_anaemic,
@@ -129,14 +131,23 @@ final_reduction <- foreach(j = 1:n, .export = ls(), .packages = c("tidyverse", "
     group_by(Country) |>
     summarise(
       anaemic_pre = sum(Pop_anaemic_pre),
-      anaemic_post = sum(Pop_anaemic_post)
+      anaemic_post = sum(Pop_anaemic_post),
+      YLD_pre = sum(YLD_pre),
+      YLD_post = sum(YLD_post)
     ) |>
     mutate(Pct_change_anaemic = (anaemic_pre - anaemic_post) / anaemic_pre,
+           DALYs_averted = YLD_post - YLD_pre,
            Iteration = j)
   
 }
 
-change <- do.call(rbind, final_reduction)
+change <- do.call(rbind, final_reduction) |>
+  group_by(Country) |>
+  summarise(change = mean(Pct_change_anaemic),
+            DALYs = mean(DALYs_averted))
+
+quantile(change$change)
+quantile(change$DALYs)
 
 
 ```

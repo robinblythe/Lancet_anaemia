@@ -2,9 +2,10 @@
 # Method of moments transformations applied where roughly symmetrical
 # Using https://aushsi.shinyapps.io/ShinyPrior/
 # Effectiveness of scaling up iron supplements taken from https://doi.org/10.21203/rs.3.rs-3897976/v1
+vd <- rtri(iter, min = 0.21, mode = 0.38, max = 0.69)
 effectiveness <- list(
-  Iron_Preg = rbeta(iter, shape1 = 11.468, shape2 = 19.786) + 0.35,  # Daily iron
-  Iron_WRA = rbeta(iter, shape1 = 12.198, shape2 = 16.861) + 0.35, # DAILY IRON
+  Iron_Preg = 1 - (1 - rbeta(iter, shape1 = 11.468, shape2 = 19.786)) * (1 - vd),  # Daily iron in pregnant women
+  Iron_WRA = 1 - (1 - rbeta(iter, shape1 = 12.198, shape2 = 16.861)) * (1 - vd), # Daily iron in WRA
   Fortification = rnorm(iter, mean = 0.755, sd = 0.110),
   # IntIron_WRA = rbeta(iter, shape1 = 14.525, shape2 = 6.285),
   Antimalarial = rbeta(iter, shape1 = 337.799, shape2 = 36.688)
