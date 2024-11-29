@@ -95,7 +95,7 @@ n <- 200
 
 # Prepare parallel computing
 cores = detectCores()
-cl <- makeCluster(25)
+cl <- makeCluster(cores - 2)
 registerDoParallel(cl)
 
 # Create output list
@@ -141,31 +141,46 @@ final_reduction <- foreach(j = 1:n, .export = ls(), .packages = c("tidyverse", "
   
 }
 
+results <- do.call(rbind, final_reduction)
+
 change <- do.call(rbind, final_reduction) |>
   group_by(Country) |>
   summarise(change = mean(Pct_change_anaemic),
             DALYs = mean(DALYs_averted))
 
-quantile(change$change)
-quantile(change$DALYs)
 
-
+save(change, results, final_reduction, file = "sim_results.RData")
 ```
 
 The visualisation plan is for league tables by region, with regions as facets on the Y-axis (vertical), and cost/DALY on the X-axis (horizontal) with a dashed line for each facet denoting the regional WTP and a density plot for each distribution of cost/YLD by simulation.
 
 ```{r}
-#Some extra code for now
-final_cost[[j]] <- total_spend %>%
-    replace(is.na(.), 0) |>
-    mutate(
-      Total_spend_all =
-        Total_spend_1 +
-          Total_spend_2 +
-          Total_spend_3 +
-          Total_spend_4
-    )
+library(patchwork)
+load("sim_results.RData")
 
+# Results
+quantile(change$change)
+quantile(change$DALYs)
+
+# Data viz
+country_details <- df_coverage |>
+  rename(Income_group = `Income group`,
+         Country = location_name) |>
+  select(Country, Region, Income_group)
+
+p <- change |> 
+  left_join(country_details, by = join_by(Country)) |>
+  ggplot()
+remove(country_details)
+
+p +
+  geom_density(aes(x = change, fill = Income_group), alpha = 0.5) +
+  #facet_wrap(vars(Region), scales = "free_y") +
+  theme_bw() +
+  labs(
+    x = "Maximum feasible reduction in anaemia prevalence (%)",
+    y = "Frequency"
+    )
 
 ```
 

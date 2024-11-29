@@ -193,6 +193,9 @@ df_costs <- vroom("./Data/unit_costs.csv", show_col_types = FALSE) |>
   rename(location_name = Country) |>
   filter(location_name %in% df_2030$location_name)
 
+# Ensuring costs != 0
+df_costs[df_costs == 0] <- 0.01
+
 df_coverage <- vroom("./Data/all_coverage_data.csv", show_col_types = FALSE) |>
   na.omit() |>
   suppressMessages()
@@ -210,7 +213,7 @@ df_coverage <- df_coverage |>
   ) |>
   rename(Antimalarial = `Antenatal antimalarial`) |>
   select(
-    location_name, Iron_Preg, Iron_WRA, Fortification, Antimalarial
+    location_name, Region, `Income group`, Iron_Preg, Iron_WRA, Fortification, Antimalarial
   ) |>
   ungroup()
 
