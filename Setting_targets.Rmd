@@ -32,10 +32,6 @@ df_coverage <- readRDS("./Data/coverage.rds")
 # Using 1 iteration per draw
 iter <- 1
 
-# Maximum possible coverage is 90% in this example
-# Note that if actual coverage > maximum coverage, there will be negative costs
-coverage_max <- 0.9
-
 # Filter by countries with data for all three input data frames
 df_2030 <- df_2030 |>
   filter(location_name %in% Reduce(intersect, list(
@@ -82,7 +78,7 @@ The basic structure of the league table idea is as follows:
 - Obtain the cost of each intervention per person and multiply by the increase in eligible population (e.g., pregnant women not currently receiving the intervention)  
 - Obtain the effectiveness (RR) of each intervention, enter that into the following formula with given current and maximum coverage:  
 $$
-\theta = \frac{1 - c_{max}(1 - RR_1)}{1 - c_{current}(1 - RR_0)}
+\theta = \frac{1 - c_{max}(1 - RR)}{1 - c_{current}(1 - RR)}
 $$
 - Now multiply theta by the target population (e.g. pregnant anaemic women) of each type of anaemia: mild, moderate, and severe, and obtain the YLD for each type
 - Divide costs by YLD and sort ascending  
@@ -143,13 +139,19 @@ final_reduction <- foreach(j = 1:n, .export = ls(), .packages = c("tidyverse", "
 
 results <- do.call(rbind, final_reduction)
 
-change <- do.call(rbind, final_reduction) |>
+change <- results |>
   group_by(Country) |>
-  summarise(change = mean(Pct_change_anaemic),
-            DALYs = mean(DALYs_averted))
+  summarise(change_median = median(Pct_change_anaemic),
+            change_low = quantile(Pct_change_anaemic, 0.025),
+            change_high = quantile(Pct_change_anaemic, 0.975),
+            DALYs_prevented_median = median(DALYs_averted),
+            DALYs_prevented_low = quantile(DALYs_averted, 0.975),
+            DALYs_prevented_high = quantile(DALYs_averted, 0.025)
+            )
 
 
 save(change, results, final_reduction, file = "sim_results.RData")
+write_csv(change, file = "simulation results.csv")
 ```
 
 The visualisation plan is for league tables by region, with regions as facets on the Y-axis (vertical), and cost/DALY on the X-axis (horizontal) with a dashed line for each facet denoting the regional WTP and a density plot for each distribution of cost/YLD by simulation.
@@ -159,8 +161,7 @@ library(patchwork)
 load("sim_results.RData")
 
 # Results
-quantile(change$change)
-quantile(change$DALYs)
+c(Mean = mean(change$change_median), Low = mean(change$change_low), High = mean(change$change_high))
 
 # Data viz
 country_details <- df_coverage |>

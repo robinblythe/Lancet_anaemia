@@ -196,26 +196,33 @@ df_costs <- vroom("./Data/unit_costs.csv", show_col_types = FALSE) |>
 # Ensuring costs != 0
 df_costs[df_costs == 0] <- 0.01
 
-df_coverage <- vroom("./Data/all_coverage_data.csv", show_col_types = FALSE) |>
-  na.omit() |>
-  suppressMessages()
-Encoding(df_coverage$`Country/Economy`) <- "UTF-8"
-df_coverage$`Country/Economy` <- iconv(df_coverage$`Country/Economy`, "UTF-8", "UTF-8", sub = "")
-df_coverage$`Country/Economy`[df_coverage$`Country/Economy` == "Curaao"] <- "Curacao"
+# Coverage
+df_coverage <- purrr::reduce(.x = list(
+  vroom("./Data/Coverage_data/MaximumCoverage_WRAIron.csv", col_names = c("location_name", "Iron_WRA_max")),
+  vroom("./Data/Coverage_data/CurrentCoverage_WRAIron.csv", col_names = c("location_name", "Iron_WRA_current")),
+  vroom("./Data/Coverage_data/MaximumCoverage_AntenatalIron.csv", col_names = c("location_name", "Iron_Preg_max")),
+  vroom("./Data/Coverage_data/CurrentCoverage_AntenatalIron.csv", col_names = c("location_name", "Iron_Preg_current")),
+  vroom("./Data/Coverage_data/MaximumCoverage_IPTp.csv", col_names = c("location_name", "Antimalarial_max")),
+  vroom("./Data/Coverage_data/CurrentCoverage_IPTp.csv", col_names = c("location_name", "Antimalarial_current")),
+  vroom("./Data/Coverage_data/MaximumCoverage_fortification.csv", col_names = c("location_name", "Fortification_max")),
+  vroom("./Data/Coverage_data/CurrentCoverage_fortification.csv", col_names = c("location_name", "Fortification_current"))
+  ),
+  merge,
+  by = "location_name",
+  all = TRUE
+)
+
+Encoding(df_coverage$location_name) <- "UTF-8"
+df_coverage$location_name <- iconv(df_coverage$location_name, "UTF-8", "UTF-8", sub = "")
+df_coverage$location_name[df_coverage$location_name == "Curaao"] <- "Curacao"
 
 df_coverage <- df_coverage |>
-  mutate(location_name = countryname(`Country/Economy`)) |>
-  group_by(location_name) |>
-  mutate(
-    Fortification = max(c(`Wheat flour fortification`, `Rice fortification`, `Maize fortification`)),
-    Iron_Preg = `Daily iron & folic acid supplementation`,
-    Iron_WRA = `Daily iron & folic acid supplementation`
-  ) |>
-  rename(Antimalarial = `Antenatal antimalarial`) |>
-  select(
-    location_name, Region, `Income group`, Iron_Preg, Iron_WRA, Fortification, Antimalarial
-  ) |>
-  ungroup()
+  mutate(location_name = countryname(location_name)) |>
+  na.omit() |>
+  suppressMessages()
+
+
+
 
 saveRDS(df_2030, file = "./Data/est_2030.rds")
 saveRDS(df_costs, file = "./Data/costs.rds")

@@ -34,7 +34,8 @@ for (i in 1:length(countrylist)) {
 
   stage0[[i]] <- do.call(rbind, sims) |>
     group_by(Intervention) |>
-    mutate(Country = country) |>
+    mutate(Country = country,
+           Cost_per_YLD = ifelse(is.nan(Cost_per_YLD), Inf, Cost_per_YLD)) |>
     relocate(Country, .before = Intervention) |>
     select(-location_name)
 }

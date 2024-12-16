@@ -82,7 +82,9 @@ simulator <- function(prev_data, country, intervention) {
     intervention %in% c("Iron_WRA", "Fortification") ~ "Pop_anaemic",
     intervention == "Antimalarial" ~ "Pop_pregnant_malaria_anaemic"
   )
-  
+
+  coverage_max = as.numeric(df_coverage[, grepl(paste0(intervention, "_max"), names(df_coverage))])
+  coverage_current = as.numeric(df_coverage[, grepl(paste0(intervention, "_current"), names(df_coverage))])
 
   df <- tibble(
     location_name = country,
@@ -95,24 +97,26 @@ simulator <- function(prev_data, country, intervention) {
            mode = df_costs[[paste0(intervention, "_Base")]]
            ) *
       max(prev_data[[Pop_eligible]]) *
-        (coverage_max - df_coverage[[intervention]]),
+        (coverage_max - coverage_current),
     
-    # Effectiveness determined by daily or intermittent
     Eff =
-      prev_data[[Pop_targeted]][prev_data$rei_name == "Mild anemia"] *
-        (1 - coverage_max * (1 - effectiveness[[intervention]])) /
-        (1 - df_coverage[[intervention]] * (1 - effectiveness[[intervention]])) *
-        YLD_mild +
+      (prev_data[[Pop_targeted]][prev_data$rei_name == "Mild anemia"] - 
+         prev_data[[Pop_targeted]][prev_data$rei_name == "Mild anemia"] *
+         ((1 - coverage_max * (1 - effectiveness[[intervention]])) /
+         (1 - coverage_current * (1 - effectiveness[[intervention]])))) *
+      YLD_mild +
 
-        prev_data[[Pop_targeted]][prev_data$rei_name == "Moderate anemia"] *
-          (1 - coverage_max * (1 - effectiveness[[intervention]])) /
-          (1 - df_coverage[[intervention]] * (1 - effectiveness[[intervention]])) *
-          YLD_moderate +
+      (prev_data[[Pop_targeted]][prev_data$rei_name == "Moderate anemia"] - 
+         prev_data[[Pop_targeted]][prev_data$rei_name == "Moderate anemia"] *
+         ((1 - coverage_max * (1 - effectiveness[[intervention]])) /
+         (1 - coverage_current * (1 - effectiveness[[intervention]])))) *
+      YLD_moderate +
 
-        prev_data[[Pop_targeted]][prev_data$rei_name == "Severe anemia"] *
-          (1 - coverage_max * (1 - effectiveness[[intervention]])) /
-          (1 - df_coverage[[intervention]] * (1 - effectiveness[[intervention]])) *
-          YLD_severe,
+      (prev_data[[Pop_targeted]][prev_data$rei_name == "Severe anemia"] - 
+         prev_data[[Pop_targeted]][prev_data$rei_name == "Severe anemia"] *
+         ((1 - coverage_max * (1 - effectiveness[[intervention]])) /
+         (1 - coverage_current * (1 - effectiveness[[intervention]])))) *
+      YLD_severe,
     
     Cost_per_YLD = Cost / Eff
     
@@ -130,34 +134,32 @@ apply_intervention <- function(base_data, cea_table) {
     if (countrylist[i] %in% cea_table$Country) {
       
       # Apply the intervention using the formula in the rmarkdown file
-      int <- subset(cea_table, Country == countrylist[i])
+      int = subset(cea_table, Country == countrylist[i])
+      coverage_max = as.numeric(df_coverage[df_coverage$location_name == countrylist[i], grepl(paste0(int$Intervention, "_max"), names(df_coverage))])
+      coverage_current = as.numeric(df_coverage[df_coverage$location_name == countrylist[i], grepl(paste0(int$Intervention, "_current"), names(df_coverage))])
 
       df_post <- base_data |>
         filter(location_name == countrylist[i]) |>
         mutate(
-          Pop_pregnant_malaria_anaemic_n = ceiling(
+          Pop_pregnant_malaria_anaemic_n = 
             Pop_pregnant_malaria_anaemic *
-              (1 - coverage_max * (1 - mean(effectiveness[[int$Intervention]]))) /
-              (1 - df_coverage[[int$Intervention]][df_coverage$location_name == countrylist[i]] *
-                 (1 - mean(effectiveness[[int$Intervention]])))),
+              ((1 - coverage_max * (1 - mean(effectiveness[[int$Intervention]]))) /
+              (1 - coverage_current * (1 - mean(effectiveness[[int$Intervention]])))),
           
           Pop_pregnant_anaemic_n = case_when(
             int$Intervention == "Antimalarial" ~ Pop_pregnant_anaemic - (Pop_pregnant_malaria_anaemic - Pop_pregnant_malaria_anaemic_n),
-            .default = ceiling(
+            .default = 
               Pop_pregnant_anaemic *
-                (1 - coverage_max * (1 - mean(effectiveness[[int$Intervention]]))) /
-                (1 - df_coverage[[int$Intervention]][df_coverage$location_name == countrylist[i]] *
-                   (1 - mean(effectiveness[[int$Intervention]]))))),
+                ((1 - coverage_max * (1 - mean(effectiveness[[int$Intervention]]))) /
+                (1 - coverage_current * (1 - mean(effectiveness[[int$Intervention]]))))),
             
             Pop_anaemic_n = case_when(
               int$Intervention == "Antimalarial" ~ Pop_anaemic - (Pop_pregnant_malaria_anaemic - Pop_pregnant_malaria_anaemic_n),
-              int$Intervention %in% c("DailyIron_Preg", "IntIron_Preg") ~ Pop_anaemic - (Pop_pregnant_anaemic - Pop_pregnant_anaemic_n),
-              .default = ceiling(
+              int$Intervention == "Iron_Preg" ~ Pop_anaemic - (Pop_pregnant_anaemic - Pop_pregnant_anaemic_n),
+              .default = 
                 Pop_anaemic *
-                  (1 - coverage_max * (1 - mean(effectiveness[[int$Intervention]]))) /
-                  (1 - df_coverage[[int$Intervention]][df_coverage$location_name == countrylist[i]] *
-                     (1 - mean(effectiveness[[int$Intervention]]))))
-              ),
+                  ((1 - coverage_max * (1 - mean(effectiveness[[int$Intervention]]))) /
+                  (1 - coverage_current * (1 - mean(effectiveness[[int$Intervention]]))))),
           YLD_n =
             case_when(
               rei_name == "Mild anemia" ~ Pop_anaemic_n * 0.005,
