@@ -184,14 +184,19 @@ df_2030 <- left_join(df_analysis, malaria) |>
 
 
 # Costs
-df_costs <- vroom("./Data/unit_costs.csv", show_col_types = FALSE) |>
-  mutate(Country = case_when(
-    Country == "Micronesia" ~ "Micronesia (Federated States of)",
-    .default = countryname(Country)
-  )) |>
+df_costs <- vroom("./Data/unit_costs.csv", show_col_types = TRUE,
+                  col_types = c(Country = "c", .default = "n")) |>
+  mutate(
+    Country = case_when(
+      Country == "Micronesia" ~ "Micronesia (Federated States of)",
+      .default = countryname(Country)
+      )) |>
+  na.omit() |>
   suppressWarnings() |>
   rename(location_name = Country) |>
   filter(location_name %in% df_2030$location_name)
+
+
 
 # Ensuring costs != 0
 df_costs[df_costs == 0] <- 0.01
