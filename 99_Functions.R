@@ -93,13 +93,9 @@ simulator <- function(prev_data, country, intervention) {
     Intervention = intervention,
 
     Cost = 
-      rtri(iter,
-           min = df_costs[[paste0(intervention, "_Low")]],
-           max = df_costs[[paste0(intervention, "_High")]],
-           mode = df_costs[[paste0(intervention, "_Base")]]
-           ) *
+      df_costs[[intervention]] * 
       max(prev_data[[Pop_eligible]]) *
-        (coverage_max - coverage_current),
+      (coverage_max - coverage_current),
     
     Eff =
       (prev_data[[Pop_targeted]][prev_data$rei_name == "Mild anemia"] - 

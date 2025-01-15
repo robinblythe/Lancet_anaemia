@@ -49,7 +49,35 @@ df_2030 <- df_prevalence |>
 
 
 # Note - if we define costs here, can reduce sampling overhead significantly and reduce sampling variation. Implement later.
-
+df_costs <- df_costs_base |>
+  rowwise() |>
+  mutate(
+    Iron_Preg = rtri(
+      iter,
+      min = Iron_Preg_Low,
+      mode = Iron_Preg_Base,
+      max = Iron_Preg_High
+      ),
+    Iron_WRA = rtri(
+      iter,
+      min = Iron_WRA_Low,
+      mode = Iron_WRA_Base,
+      max = Iron_WRA_High
+    ),
+    Antimalarial = rtri(
+      iter,
+      min = Antimalarial_Low,
+      mode = Antimalarial_Base,
+      max = Antimalarial_High
+    ),
+    Fortification = rtri(
+      iter,
+      min = Fortification_Low,
+      mode = Fortification_Base,
+      max = Fortification_High
+    )
+  ) |>
+  select(location_name, Iron_Preg, Iron_WRA, Antimalarial, Fortification)
 
 # Run the simulator function for each intervention:
 # Simulator takes prevalence data, country, intervention name, eligible population (for costs)

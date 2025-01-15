@@ -26,7 +26,7 @@ source("./99_Functions.R")
 
 # Read in 2030 population estimates, costs, and coverage
 df_prevalence <- readRDS("./Data/est_2030.rds")
-df_costs <- readRDS("./Data/costs.rds")
+df_costs_base <- readRDS("./Data/costs.rds")
 df_coverage <- readRDS("./Data/coverage.rds")
 
 # Using 1 iteration per draw
@@ -36,7 +36,7 @@ iter <- 1
 df_prevalence <- df_prevalence |>
   filter(location_name %in% Reduce(intersect, list(
     df_prevalence$location_name,
-    df_costs$location_name,
+    df_costs_base$location_name,
     df_coverage$location_name
   )))
 
@@ -47,7 +47,7 @@ countrylist <- unique(df_prevalence$location_name)
 WTP_list <- c("Opp_Lower", "Opp_Upper", "HCFI_Lower", "HCFI_Upper")
 Threshold = WTP_list[2]
 
-WTP <- df_costs |>
+WTP <- df_costs_base |>
   select(
     location_name,
     paste0("WTP_", Threshold)
@@ -128,6 +128,7 @@ final_reduction <- foreach(j = 1:n, .export = ls(), .packages = c("tidyverse", "
     ) |>
     mutate(Pct_change_anaemic = (anaemic_pre - anaemic_post) / anaemic_pre,
            DALYs_averted = YLD_post - YLD_pre,
+           Pct_change_YLD = (YLD_pre - YLD_post) / YLD_pre,
            Iteration = j)
   
 }
