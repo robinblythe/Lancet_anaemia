@@ -51,8 +51,8 @@ still <- vroom("./Data/Stillbirth-rate-and-deaths_2023.csv", show_col_types = FA
   suppressMessages()
 
 pregnancy <- inner_join(fert, still) |>
-  mutate(still = Median / 1000 * Fertility_Rate) |>
-  mutate(Pr_pregnant = ((Fertility_Rate * 0.75) + (still * 0.65)) / 34) |>
+  mutate(still = Median / 1000 * Fertility_Rate,
+         Pr_pregnant = ((Fertility_Rate * 0.75) + (still * 0.65)) / 34) |> #34 = weeks of pregnancy
   select("location_name", "year_id", "Pr_pregnant")
 
 remove(fert, still)
@@ -142,10 +142,14 @@ df_analysis <- left_join(gbd, pregnancy) |>
   select(-year_id) |>
   mutate(
     Pop_pregnant = ceiling(Pr_pregnant * Pop_wra),
-    Pop_pregnant_anaemic = ceiling(Pr_pregnant * Prevalence),
-    Pop_anaemic = ceiling(Prevalence)
+    Pop_pregnant_anaemic_mid = ceiling(Pr_pregnant * Prevalence),
+    Pop_pregnant_anaemic_low = ceiling(Pr_pregnant * Prev_low),
+    Pop_pregnant_anaemic_high = ceiling(Pr_pregnant * Prev_high),
+    Pop_anaemic_mid = ceiling(Prevalence),
+    Pop_anaemic_low = ceiling(Prev_low),
+    Pop_anaemic_high = ceiling(Prev_high)
   ) |>
-  select(-c(Pr_pregnant, Prevalence)) |>
+  select(-c(Pr_pregnant, Prevalence, Prev_low, Prev_high)) |>
   na.omit()
 
 
@@ -168,19 +172,15 @@ malaria <- vroom("./Data/malaria_data.csv", show_col_types = FALSE) |>
 # Severe anaemia == 0.150
 
 df_2030 <- left_join(df_analysis, malaria) |>
-  mutate(Pop_pregnant_malaria_anaemic = ceiling(Pop_pregnant_anaemic * Pct_malarial)) |>
-  mutate(Pop_pregnant_malaria_anaemic = ifelse(is.na(Pop_pregnant_malaria_anaemic), 0, Pop_pregnant_malaria_anaemic)) |>
+  mutate(Pop_pregnant_malaria_anaemic_mid = ceiling(Pop_pregnant_anaemic_mid * Pct_malarial),
+         Pop_pregnant_malaria_anaemic_low = ceiling(Pop_pregnant_anaemic_low * Pct_malarial),
+         Pop_pregnant_malaria_anaemic_high = ceiling(Pop_pregnant_anaemic_high * Pct_malarial)) |>
   select(-Pct_malarial) |>
-  relocate(Pop_pregnant_malaria_anaemic, .before = Pop_anaemic) |>
-  mutate(YLD = case_when(
-    rei_name == "Mild anemia" ~ Pop_anaemic * 0.005,
-    rei_name == "Moderate anemia" ~ Pop_anaemic * 0.053,
-    rei_name == "Severe anemia" ~ Pop_anaemic * 0.150
-  )) |>
   group_by(location_name) |>
-  mutate(Anaemia_rate = sum(Pop_anaemic) / max(Pop_wra)) |>
+  mutate(Anaemia_rate = sum(Pop_anaemic_mid) / max(Pop_wra)) |>
   relocate(Anaemia_rate, .before = Pop_wra) |>
   ungroup()
+df_2030[is.na(df_2030)] <- 0
 
 
 # Costs

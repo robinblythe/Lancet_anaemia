@@ -16,9 +16,11 @@ rollup <- function(population) {
         metric_name == "Number" # and get the total number
       ) |>
       group_by(location_name, year_id, rei_name) |>
-      summarise(Prevalence = ceiling(sum(val))) |> # Roll up rows into groups
+      summarise(Prevalence = ceiling(sum(val)),
+                Prev_low = ceiling(sum(lower)),
+                Prev_high = ceiling(sum(upper))) |> # Roll up rows into groups
       ungroup() |>
-      select(location_name, year_id, rei_name, Prevalence)
+      select(location_name, year_id, rei_name, Prevalence, Prev_low, Prev_high)
   } else if (population == "wra") { # Women of reproductive age
     do.call(rbind, list(
       vroom("./Data/mild_anemia_prev_data.csv", show_col_types = FALSE),
@@ -162,9 +164,9 @@ apply_intervention <- function(base_data, cea_table) {
                   (1 - coverage_current * (1 - mean(effectiveness[[int$Intervention]]))))),
           YLD_n =
             case_when(
-              rei_name == "Mild anemia" ~ Pop_anaemic_n * 0.005,
-              rei_name == "Moderate anemia" ~ Pop_anaemic_n * 0.053,
-              rei_name == "Severe anemia" ~ Pop_anaemic_n * 0.150
+              rei_name == "Mild anemia" ~ Pop_anaemic_n * YLD_mild,
+              rei_name == "Moderate anemia" ~ Pop_anaemic_n * YLD_moderate,
+              rei_name == "Severe anemia" ~ Pop_anaemic_n * YLD_severe
               )
             )
     } else {
@@ -177,9 +179,9 @@ apply_intervention <- function(base_data, cea_table) {
           Pop_anaemic_n = Pop_anaemic,
           YLD_n =
             case_when(
-              rei_name == "Mild anemia" ~ Pop_anaemic_n * 0.005,
-              rei_name == "Moderate anemia" ~ Pop_anaemic_n * 0.053,
-              rei_name == "Severe anemia" ~ Pop_anaemic_n * 0.150
+              rei_name == "Mild anemia" ~ Pop_anaemic_n * YLD_mild,
+              rei_name == "Moderate anemia" ~ Pop_anaemic_n * YLD_moderate,
+              rei_name == "Severe anemia" ~ Pop_anaemic_n * YLD_severe
             )
         )
     }

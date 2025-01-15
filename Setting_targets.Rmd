@@ -25,7 +25,7 @@ library(doParallel)
 source("./99_Functions.R")
 
 # Read in 2030 population estimates, costs, and coverage
-df_2030 <- readRDS("./Data/est_2030.rds")
+df_prevalence <- readRDS("./Data/est_2030.rds")
 df_costs <- readRDS("./Data/costs.rds")
 df_coverage <- readRDS("./Data/coverage.rds")
 
@@ -33,20 +33,15 @@ df_coverage <- readRDS("./Data/coverage.rds")
 iter <- 1
 
 # Filter by countries with data for all three input data frames
-df_2030 <- df_2030 |>
+df_prevalence <- df_prevalence |>
   filter(location_name %in% Reduce(intersect, list(
-    df_2030$location_name,
+    df_prevalence$location_name,
     df_costs$location_name,
     df_coverage$location_name
   )))
 
 # Get full country list
-countrylist <- unique(df_2030$location_name)
-
-# YLDs from anaemia:
-YLD_mild <- 0.005
-YLD_moderate <- 0.053
-YLD_severe <- 0.150
+countrylist <- unique(df_prevalence$location_name)
 
 # Which WTP threshold to use?
 WTP_list <- c("Opp_Lower", "Opp_Upper", "HCFI_Lower", "HCFI_Upper")
@@ -151,7 +146,7 @@ change <- results |>
 
 
 save(change, results, final_reduction, file = "sim_results.RData")
-write_csv(change, file = "simulation results.csv")
+write_csv(change, file = "simulation_results.csv")
 ```
 
 The visualisation plan is for league tables by region, with regions as facets on the Y-axis (vertical), and cost/DALY on the X-axis (horizontal) with a dashed line for each facet denoting the regional WTP and a density plot for each distribution of cost/YLD by simulation.

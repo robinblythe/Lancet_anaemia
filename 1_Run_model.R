@@ -12,6 +12,45 @@ effectiveness <- list(
 )
 # effectiveness[["IntIron_Preg"]] <- rnorm(iter, mean = 1.320, sd = 0.245) * effectiveness$DailyIron_Preg
 
+# YLDs from anaemia:
+# https://doi.org/10.1016/S2352-3026(23)00160-6
+YLD_mild <- rbeta(iter, shape1 = 4.007, shape2 = 1091.304)
+YLD_moderate <- rbeta(iter, shape1 = 22.992, shape2 = 410.398)
+YLD_severe <- rbeta(iter, shape1 = 25.198, 141.630)
+
+# Use a sample from each uncertainty interval for the prevalence data:
+df_2030 <- df_prevalence |>
+  rowwise() |>
+  mutate(
+    Pop_anaemic = tryCatch(rtri(
+      iter,
+      min = Pop_anaemic_low,
+      mode = Pop_anaemic_mid,
+      max = Pop_anaemic_high), error = function(e) return(Pop_anaemic_mid)),
+    Pop_pregnant_anaemic = tryCatch(rtri(
+      iter, 
+      min = Pop_pregnant_anaemic_low, 
+      mode = Pop_pregnant_anaemic_mid,
+      max = Pop_pregnant_anaemic_high), error = function(e) return(Pop_pregnant_anaemic_mid)),
+    Pop_pregnant_malaria_anaemic = tryCatch(rtri(
+      iter,
+      min = Pop_pregnant_malaria_anaemic_low,
+      mode = Pop_pregnant_malaria_anaemic_mid,
+      max = Pop_pregnant_malaria_anaemic_high), error = function(e) return(Pop_pregnant_malaria_anaemic_mid)),
+    YLD = case_when(
+      rei_name == "Mild anemia" ~ YLD_mild * Pop_anaemic,
+      rei_name == "Moderate anemia" ~ YLD_moderate * Pop_anaemic,
+      rei_name == "Severe anemia" ~ YLD_severe * Pop_anaemic
+    )
+  ) |>
+  select(-c(Pop_anaemic_high, Pop_anaemic_low, Pop_anaemic_mid,
+            Pop_pregnant_anaemic_high, Pop_pregnant_anaemic_low, Pop_pregnant_anaemic_mid,
+            Pop_pregnant_malaria_anaemic_high, Pop_pregnant_malaria_anaemic_low, Pop_pregnant_malaria_anaemic_mid))
+
+
+# Note - if we define costs here, can reduce sampling overhead significantly and reduce sampling variation. Implement later.
+
+
 # Run the simulator function for each intervention:
 # Simulator takes prevalence data, country, intervention name, eligible population (for costs)
 # and target population (for effects)
