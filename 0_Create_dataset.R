@@ -1,5 +1,6 @@
-# Create dataset to use for analysis
+# Create datasets to use for analysis
 source("99_Functions.R")
+
 library(tidyverse)
 library(vroom)
 library(countrycode)
@@ -41,124 +42,36 @@ fert <- vroom("./Data/fertility_rates.csv", show_col_types = FALSE) |>
 # Note stillbirth rate is from 28 weeks/6.5 months
 still <- vroom("./Data/Stillbirth-rate-and-deaths_2023.csv", show_col_types = FALSE) |>
   mutate(location_name = countryname(Country.Name)) |>
-  select("location_name", "Uncertainty.Bounds*", paste0(seq(2000, 2021, 1), ".5")) |>
+  select("location_name", "Uncertainty.Bounds*", "2021.5") |>
   pivot_longer(!c("location_name", "Uncertainty.Bounds*"), names_to = "year_id") |>
   na.omit() |>
   pivot_wider(names_from = "Uncertainty.Bounds*", values_from = "value") |>
   mutate(year_id = floor(as.numeric(year_id))) |>
-  select(-c(Lower, Upper)) |>
   suppressWarnings() |>
   suppressMessages()
 
+# Note - we have uncertainty estimates for stillbirth rates, but incorporating them within the simulation is messy. Currently omitted.
 pregnancy <- inner_join(fert, still) |>
-  mutate(still = Median / 1000 * Fertility_Rate,
-         Pr_pregnant = ((Fertility_Rate * 0.75) + (still * 0.65)) / 34) |> #34 = weeks of pregnancy
-  select("location_name", "year_id", "Pr_pregnant")
+  mutate(
+    still = Median / 1000 * Fertility_Rate,
+    still_low = Lower / 1000 * Fertility_Rate,
+    still_high = Upper / 1000 * Fertility_Rate,
+    Pr_pregnant_mid = ((Fertility_Rate * 0.75) + (still * 0.65)) / 34, # 34 = weeks of pregnancy
+    Pr_pregnant_low = ((Fertility_Rate * 0.75) + (still_low * 0.65)) / 34,
+    Pr_pregnant_high = ((Fertility_Rate * 0.75) + (still_high * 0.65)) / 34
+  ) |> 
+  select("location_name", "year_id", "Pr_pregnant_mid", "Pr_pregnant_low", "Pr_pregnant_high")
 
 remove(fert, still)
 
-# Extract countries list for predictions
-# countries <- intersect(gbd$location_name, pregnancy$location_name)
-
-# Predict 2030 anaemia rates based on existing prevalence using smoothing splines - if we want to use them
-# preds <- list()
-#
-# for (i in 1:length(countries)) {
-#   preds$mild[[i]] <- tibble(
-#     location_name = countries[i],
-#     year_id = pred_year,
-#     rei_name = "Mild anemia",
-#     Prevalence = with(
-#       subset(gbd, location_name == countries[i] & rei_name == "Mild anemia"),
-#       predict(smooth.spline(x = year_id, y = Prevalence), x = pred_year)$y
-#     )
-#   )
-#
-#   preds$moderate[[i]] <- tibble(
-#     location_name = countries[i],
-#     year_id = pred_year,
-#     rei_name = "Moderate anemia",
-#     Prevalence = with(
-#       subset(gbd, location_name == countries[i] & rei_name == "Moderate anemia"),
-#       predict(smooth.spline(x = year_id, y = Prevalence), x = pred_year)$y
-#     )
-#   )
-#
-#   preds$severe[[i]] <- tibble(
-#     location_name = countries[i],
-#     year_id = pred_year,
-#     rei_name = "Severe anemia",
-#     Prevalence = with(
-#       subset(gbd, location_name == countries[i] & rei_name == "Severe anemia"),
-#       predict(smooth.spline(x = year_id, y = Prevalence), x = pred_year)$y
-#     )
-#   )
-#
-#   preds$wra[[i]] <- tibble(
-#     location_name = countries[i],
-#     year_id = pred_year,
-#     Pop_wra = with(
-#       subset(gbd, location_name == countries[i] & rei_name == "Severe anemia"),
-#       predict(smooth.spline(x = year_id, y = Pop_wra), x = pred_year)$y
-#     )
-#   )
-#
-#   preds$total[[i]] <- tibble(
-#     location_name = countries[i],
-#     year_id = pred_year,
-#     Pop_total = with(
-#       subset(gbd, location_name == countries[i] & rei_name == "Severe anemia"),
-#       predict(smooth.spline(x = year_id, y = Pop_total), x = pred_year)$y
-#     )
-#   )
-# }
-#
-# # Roll up predictions into 2030 dataset
-# df_analysis <- bind_rows(preds) |>
-#   group_by(location_name) |>
-#   arrange(location_name, rei_name) |>
-#   fill(Pop_wra, .direction = "up") |>
-#   fill(Pop_total, .direction = "up") |>
-#   na.omit()
-
-# Add pregnancy rates from 2021 - spline prediction is too unreliable due to sharp declines
-# df_analysis <- left_join(
-#   df_analysis,
-#   pregnancy |>
-#     filter(year_id == 2021) |>
-#     select(-year_id)
-# ) |>
-#   mutate(
-#     Pop_pregnant = ceiling(Pr_pregnant * Pop_wra),
-#     Pop_pregnant_anaemic = ceiling(Pr_pregnant * Prevalence),
-#     Pop_anaemic = ceiling(Prevalence)
-#   ) |>
-#   select(-c(Pr_pregnant, Prevalence))
-
-
-# If using 2021 data, just start from here:
+# Combine pregnancy data with GBD
 df_analysis <- left_join(gbd, pregnancy) |>
-  filter(year_id == 2021) |>
-  select(-year_id) |>
-  mutate(
-    Pop_pregnant = ceiling(Pr_pregnant * Pop_wra),
-    Pop_pregnant_anaemic_mid = ceiling(Pr_pregnant * Prevalence),
-    Pop_pregnant_anaemic_low = ceiling(Pr_pregnant * Prev_low),
-    Pop_pregnant_anaemic_high = ceiling(Pr_pregnant * Prev_high),
-    Pop_anaemic_mid = ceiling(Prevalence),
-    Pop_anaemic_low = ceiling(Prev_low),
-    Pop_anaemic_high = ceiling(Prev_high)
-  ) |>
-  select(-c(Pr_pregnant, Prevalence, Prev_low, Prev_high)) |>
-  na.omit()
+  filter(year_id == 2021)
 
-
-# Treatment fraction: Malarial status (pregnant women only)
-# Where country is excluded, assume rate == 0
 malaria <- vroom("./Data/malaria_data.csv", show_col_types = FALSE) |>
   filter(
     Metric == "Incidence Rate",
-    Year == 2020
+    Year == max(Year)
   ) |>
   mutate(
     Pct_malarial = Value / 1000,
@@ -166,31 +79,21 @@ malaria <- vroom("./Data/malaria_data.csv", show_col_types = FALSE) |>
   ) |>
   select(location_name, Pct_malarial)
 
-# YLDs per person:
-# Mild anaemia == 0.005
-# Moderate anaemia == 0.053
-# Severe anaemia == 0.150
-
-df_2030 <- left_join(df_analysis, malaria) |>
-  mutate(Pop_pregnant_malaria_anaemic_mid = ceiling(Pop_pregnant_anaemic_mid * Pct_malarial),
-         Pop_pregnant_malaria_anaemic_low = ceiling(Pop_pregnant_anaemic_low * Pct_malarial),
-         Pop_pregnant_malaria_anaemic_high = ceiling(Pop_pregnant_anaemic_high * Pct_malarial)) |>
-  select(-Pct_malarial) |>
-  group_by(location_name) |>
-  mutate(Anaemia_rate = sum(Pop_anaemic_mid) / max(Pop_wra)) |>
-  relocate(Anaemia_rate, .before = Pop_wra) |>
-  ungroup()
+df_2030 <- left_join(df_analysis, malaria)
 df_2030[is.na(df_2030)] <- 0
 
 
 # Costs
-df_costs <- vroom("./Data/unit_costs.csv", show_col_types = TRUE,
-                  col_types = c(Country = "c", .default = "n")) |>
+df_costs <- vroom("./Data/unit_costs.csv",
+  show_col_types = TRUE,
+  col_types = c(Country = "c", .default = "n")
+) |>
   mutate(
     Country = case_when(
       Country == "Micronesia" ~ "Micronesia (Federated States of)",
       .default = countryname(Country)
-      )) |>
+    )
+  ) |>
   na.omit() |>
   suppressWarnings() |>
   rename(location_name = Country) |>
@@ -202,15 +105,16 @@ df_costs <- vroom("./Data/unit_costs.csv", show_col_types = TRUE,
 df_costs[df_costs == 0] <- 0.01
 
 # Coverage
-df_coverage <- purrr::reduce(.x = list(
-  vroom("./Data/Coverage_data/MaximumCoverage_WRAIron.csv", col_names = c("location_name", "Iron_WRA_max")),
-  vroom("./Data/Coverage_data/CurrentCoverage_WRAIron.csv", col_names = c("location_name", "Iron_WRA_current")),
-  vroom("./Data/Coverage_data/MaximumCoverage_AntenatalIron.csv", col_names = c("location_name", "Iron_Preg_max")),
-  vroom("./Data/Coverage_data/CurrentCoverage_AntenatalIron.csv", col_names = c("location_name", "Iron_Preg_current")),
-  vroom("./Data/Coverage_data/MaximumCoverage_IPTp.csv", col_names = c("location_name", "Antimalarial_max")),
-  vroom("./Data/Coverage_data/CurrentCoverage_IPTp.csv", col_names = c("location_name", "Antimalarial_current")),
-  vroom("./Data/Coverage_data/MaximumCoverage_fortification.csv", col_names = c("location_name", "Fortification_max")),
-  vroom("./Data/Coverage_data/CurrentCoverage_fortification.csv", col_names = c("location_name", "Fortification_current"))
+df_coverage <- purrr::reduce(
+  .x = list(
+    vroom("./Data/Coverage_data/MaximumCoverage_WRAIron.csv", col_names = c("location_name", "Iron_WRA_max")),
+    vroom("./Data/Coverage_data/CurrentCoverage_WRAIron.csv", col_names = c("location_name", "Iron_WRA_current")),
+    vroom("./Data/Coverage_data/MaximumCoverage_AntenatalIron.csv", col_names = c("location_name", "Iron_Preg_max")),
+    vroom("./Data/Coverage_data/CurrentCoverage_AntenatalIron.csv", col_names = c("location_name", "Iron_Preg_current")),
+    vroom("./Data/Coverage_data/MaximumCoverage_IPTp.csv", col_names = c("location_name", "Antimalarial_max")),
+    vroom("./Data/Coverage_data/CurrentCoverage_IPTp.csv", col_names = c("location_name", "Antimalarial_current")),
+    vroom("./Data/Coverage_data/MaximumCoverage_fortification.csv", col_names = c("location_name", "Fortification_max")),
+    vroom("./Data/Coverage_data/CurrentCoverage_fortification.csv", col_names = c("location_name", "Fortification_current"))
   ),
   merge,
   by = "location_name",
@@ -235,4 +139,3 @@ saveRDS(df_coverage, file = "./Data/coverage.rds")
 
 rm(list = ls())
 gc()
-.rs.restartR()

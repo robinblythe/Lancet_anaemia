@@ -44,8 +44,9 @@ df_prevalence <- df_prevalence |>
 countrylist <- unique(df_prevalence$location_name)
 
 # Which WTP threshold to use?
+# NB: "Opp_Upper" corresponds to Pichon-Riviere opportunity cost method (base case)
 WTP_list <- c("Opp_Lower", "Opp_Upper", "HCFI_Lower", "HCFI_Upper")
-Threshold = WTP_list[2]
+Threshold <- WTP_list[2]
 
 WTP <- df_costs_base |>
   select(
@@ -85,7 +86,7 @@ $$
 n <- 200
 
 # Prepare parallel computing
-cores = detectCores()
+cores <- detectCores()
 cl <- makeCluster(cores - 2)
 registerDoParallel(cl)
 
@@ -95,9 +96,8 @@ final_reduction <- list()
 # Repeat model n times
 set.seed(888)
 final_reduction <- foreach(j = 1:n, .export = ls(), .packages = c("tidyverse", "EnvStats")) %dopar% {
-
   source("1_Run_model.R", local = T)
-  
+
   final_reduction[[j]] <- df_final |>
     rename(
       Pop_pregnant_anaemic_post = Pop_pregnant_anaemic,
@@ -105,8 +105,9 @@ final_reduction <- foreach(j = 1:n, .export = ls(), .packages = c("tidyverse", "
       Pop_anaemic_post = Pop_anaemic,
       YLD_post = YLD
     ) |>
-    full_join(df_2030, 
-              by = join_by(location_name, rei_name, Anaemia_rate, Pop_wra, Pop_total, Pop_pregnant)) |>
+    full_join(df_2030,
+      by = join_by(location_name, rei_name, Anaemia_rate, Pop_wra, Pop_total, Pop_pregnant)
+    ) |>
     mutate(
       Change_anaemic = Pop_anaemic_post - Pop_anaemic,
       Pct_change_anaemic = Change_anaemic / Pop_anaemic
@@ -126,24 +127,26 @@ final_reduction <- foreach(j = 1:n, .export = ls(), .packages = c("tidyverse", "
       YLD_pre = sum(YLD_pre),
       YLD_post = sum(YLD_post)
     ) |>
-    mutate(Pct_change_anaemic = (anaemic_pre - anaemic_post) / anaemic_pre,
-           DALYs_averted = YLD_post - YLD_pre,
-           Pct_change_YLD = (YLD_pre - YLD_post) / YLD_pre,
-           Iteration = j)
-  
+    mutate(
+      Pct_change_anaemic = (anaemic_pre - anaemic_post) / anaemic_pre,
+      DALYs_averted = YLD_post - YLD_pre,
+      Pct_change_YLD = (YLD_pre - YLD_post) / YLD_pre,
+      Iteration = j
+    )
 }
 
 results <- do.call(rbind, final_reduction)
 
 change <- results |>
   group_by(Country) |>
-  summarise(change_median = median(Pct_change_anaemic),
-            change_low = quantile(Pct_change_anaemic, 0.025),
-            change_high = quantile(Pct_change_anaemic, 0.975),
-            DALYs_prevented_median = median(DALYs_averted),
-            DALYs_prevented_low = quantile(DALYs_averted, 0.975),
-            DALYs_prevented_high = quantile(DALYs_averted, 0.025)
-            )
+  summarise(
+    change_median = median(Pct_change_anaemic),
+    change_low = quantile(Pct_change_anaemic, 0.025),
+    change_high = quantile(Pct_change_anaemic, 0.975),
+    DALYs_prevented_median = median(DALYs_averted),
+    DALYs_prevented_low = quantile(DALYs_averted, 0.975),
+    DALYs_prevented_high = quantile(DALYs_averted, 0.025)
+  )
 
 
 save(change, results, final_reduction, file = "sim_results.RData")
@@ -153,7 +156,6 @@ write_csv(change, file = "simulation_results.csv")
 The visualisation plan is for league tables by region, with regions as facets on the Y-axis (vertical), and cost/DALY on the X-axis (horizontal) with a dashed line for each facet denoting the regional WTP and a density plot for each distribution of cost/YLD by simulation.
 
 ```{r}
-library(patchwork)
 load("sim_results.RData")
 
 # Results
@@ -161,24 +163,25 @@ c(Mean = mean(change$change_median), Low = mean(change$change_low), High = mean(
 
 # Data viz
 country_details <- df_coverage |>
-  rename(Income_group = `Income group`,
-         Country = location_name) |>
+  rename(
+    Income_group = `Income group`,
+    Country = location_name
+  ) |>
   select(Country, Region, Income_group)
 
-p <- change |> 
+p <- change |>
   left_join(country_details, by = join_by(Country)) |>
   ggplot()
 remove(country_details)
 
 p +
   geom_density(aes(x = change, fill = Income_group), alpha = 0.5) +
-  #facet_wrap(vars(Region), scales = "free_y") +
+  # facet_wrap(vars(Region), scales = "free_y") +
   theme_bw() +
   labs(
     x = "Maximum feasible reduction in anaemia prevalence (%)",
     y = "Frequency"
-    )
-
+  )
 ```
 
 

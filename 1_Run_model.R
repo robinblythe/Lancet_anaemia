@@ -2,9 +2,9 @@
 # Method of moments transformations applied where roughly symmetrical
 # Using https://aushsi.shinyapps.io/ShinyPrior/
 # Effectiveness of scaling up iron supplements taken from https://doi.org/10.21203/rs.3.rs-3897976/v1
-vd <- rtri(iter, min = 0.21, mode = 0.38, max = 0.69) #voltage drop
+vd <- rtri(iter, min = 0.21, mode = 0.38, max = 0.69) # voltage drop
 effectiveness <- list(
-  Iron_Preg = 1 - (1 - rbeta(iter, shape1 = 11.468, shape2 = 19.786)) * (1 - vd),  # Daily iron in pregnant women
+  Iron_Preg = 1 - (1 - rbeta(iter, shape1 = 11.468, shape2 = 19.786)) * (1 - vd), # Daily iron in pregnant women
   Iron_WRA = 1 - (1 - rbeta(iter, shape1 = 12.198, shape2 = 16.861)) * (1 - vd), # Daily iron in WRA
   Fortification = rnorm(iter, mean = 0.755, sd = 0.110),
   # IntIron_WRA = rbeta(iter, shape1 = 14.525, shape2 = 6.285),
@@ -22,30 +22,49 @@ YLD_severe <- rbeta(iter, shape1 = 25.198, 141.630)
 df_2030 <- df_prevalence |>
   rowwise() |>
   mutate(
-    Pop_anaemic = tryCatch(rtri(
+    Pop_anaemic = rtri_catch(
       iter,
-      min = Pop_anaemic_low,
-      mode = Pop_anaemic_mid,
-      max = Pop_anaemic_high), error = function(e) return(Pop_anaemic_mid)),
-    Pop_pregnant_anaemic = tryCatch(rtri(
-      iter, 
-      min = Pop_pregnant_anaemic_low, 
-      mode = Pop_pregnant_anaemic_mid,
-      max = Pop_pregnant_anaemic_high), error = function(e) return(Pop_pregnant_anaemic_mid)),
-    Pop_pregnant_malaria_anaemic = tryCatch(rtri(
+      min = Prev_low,
+      mode = Prevalence,
+      max = Prev_high
+    )) |>
+  ungroup()
+
+df_2030_by_country <- df_prevalence |>
+  select(location_name, Pop_wra, Pr_pregnant_mid, Pr_pregnant_low, Pr_pregnant_high, Pct_malarial) |>
+  unique() |>
+  rowwise() |>
+  mutate(
+    Pr_pregnant = rtri_catch(
       iter,
-      min = Pop_pregnant_malaria_anaemic_low,
-      mode = Pop_pregnant_malaria_anaemic_mid,
-      max = Pop_pregnant_malaria_anaemic_high), error = function(e) return(Pop_pregnant_malaria_anaemic_mid)),
+      min = Pr_pregnant_low,
+      mode = Pr_pregnant_mid,
+      max = Pr_pregnant_high
+    )
+  ) |>
+  ungroup() |>
+  mutate(
+    Pop_pregnant = Pr_pregnant * Pop_wra,
+    Pop_pregnant_malarial = Pop_pregnant * Pct_malarial
+  ) |>
+  select(location_name, Pr_pregnant, Pop_pregnant, Pop_pregnant_malarial)
+
+df_2030 <- left_join(df_2030, df_2030_by_country, by = join_by(location_name)) |>
+  mutate(
+    Pop_pregnant_anaemic = Pop_anaemic * Pr_pregnant,
+    Pop_pregnant_malaria_anaemic = Pop_pregnant_anaemic * Pct_malarial,
     YLD = case_when(
       rei_name == "Mild anemia" ~ YLD_mild * Pop_anaemic,
       rei_name == "Moderate anemia" ~ YLD_moderate * Pop_anaemic,
       rei_name == "Severe anemia" ~ YLD_severe * Pop_anaemic
     )
   ) |>
-  select(-c(Pop_anaemic_high, Pop_anaemic_low, Pop_anaemic_mid,
-            Pop_pregnant_anaemic_high, Pop_pregnant_anaemic_low, Pop_pregnant_anaemic_mid,
-            Pop_pregnant_malaria_anaemic_high, Pop_pregnant_malaria_anaemic_low, Pop_pregnant_malaria_anaemic_mid))
+  select(location_name, rei_name, Pop_wra, Pop_total, 
+         Pop_anaemic, Pop_pregnant, Pop_pregnant_malarial, 
+         Pop_pregnant_anaemic, Pop_pregnant_malaria_anaemic, YLD)
+  
+remove(df_2030_by_country)   
+    
 
 
 # Note - if we define costs here, can reduce sampling overhead significantly and reduce sampling variation. Implement later.
@@ -57,7 +76,7 @@ df_costs <- df_costs_base |>
       min = Iron_Preg_Low,
       mode = Iron_Preg_Base,
       max = Iron_Preg_High
-      ),
+    ),
     Iron_WRA = rtri(
       iter,
       min = Iron_WRA_Low,
@@ -101,8 +120,10 @@ for (i in 1:length(countrylist)) {
 
   stage0[[i]] <- do.call(rbind, sims) |>
     group_by(Intervention) |>
-    mutate(Country = country,
-           Cost_per_YLD = ifelse(is.nan(Cost_per_YLD), Inf, Cost_per_YLD)) |>
+    mutate(
+      Country = country,
+      Cost_per_YLD = ifelse(is.nan(Cost_per_YLD), Inf, Cost_per_YLD)
+    ) |>
     relocate(Country, .before = Intervention) |>
     select(-location_name)
 }
@@ -292,4 +313,3 @@ total_spend <- int4 |>
 df_final <- apply_intervention(base_data = df_stage3, cea_table = int4)
 
 remove(cea3, df_stage3, int3, int4)
-
