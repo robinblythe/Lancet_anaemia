@@ -1,7 +1,7 @@
-Afghanistan,0.63
+Afghanistan,0.68
 Albania,0.78
-Algeria,0.71006
-American Samoa,0
+Algeria,0.76006
+American Samoa,0.854
 Andorra,1
 Angola,0.61
 Antigua and Barbuda,1
@@ -18,31 +18,31 @@ Barbados,1
 Belarus,1
 Belgium,1
 Belize,0.93
-Benin,0.764
+Benin,0.814
 Bermuda,1
-Bhutan,0.68933
+Bhutan,0.799
 Bolivia,0.86
-Bosnia and Herzegovina,0.6714
+Bosnia and Herzegovina,0.91108
 Botswana,0.919
 Brazil,0.92
 British Virgin Islands,1
 Brunei Darussalam,1
-Bulgaria,0.6714
+Bulgaria,0.91108
 Burkina Faso,0.984
-Burundi,0.957
+Burundi,1
 Cabo Verde,0.86
 Cambodia,0.86
-Cameroon,0.918
+Cameroon,0.968
 Canada,1
 Cayman Islands,1
-Central African Republic,0.71258
-Chad,0.786
+Central African Republic,0.76258
+Chad,0.836
 Channel Islands,1
 Chile,1
 China,0.93
 Colombia,0.9
-Comoros,0.927
-"Congo, Dem. Rep.",0.787
+Comoros,0.977
+"Congo, Dem. Rep.",0.837
 Congo,0.856
 Costa Rica,0.94
 Côte d’Ivoire,0.954
@@ -52,13 +52,13 @@ Curaçao,1
 Cyprus,1
 Czech Republic,1
 Denmark,1
-Djibouti,0.647
-Dominica,0.6768
+Djibouti,0.7
+Dominica,0.85793
 Dominican Republic,0.93
 Ecuador,0.713
-"Egypt, Arab Rep.",0.947
-El Salvador,0.803
-Equatorial Guinea,0.738
+"Egypt, Arab Rep.",0.997
+El Salvador,0.853
+Equatorial Guinea,0.946
 Eritrea,0.724
 Estonia,1
 Eswatini,0.971
@@ -76,26 +76,26 @@ Ghana,0.978
 Gibraltar,1
 Greece,1
 Greenland,1
-Grenada,0.6768
+Grenada,0.85793
 Guam,1
-Guatemala,0.914
-Guinea,0.863
+Guatemala,0.964
+Guinea,0.913
 Guinea-Bissau,0.81
 Guyana,0.85
-Haiti,0.805
+Haiti,0.855
 Honduras,0.88
 "Hong Kong SAR, China",1
 Hungary,1
 Iceland,1
 India,0.58
 Indonesia,0.975
-Iran (Islamic Republic of),0.647
-Iraq,0.762
+Iran (Islamic Republic of),0.7
+Iraq,0.812
 Ireland,1
 Isle of Man,1
 Israel,1
 Italy,1
-Jamaica,0.6768
+Jamaica,0.85793
 Japan,1
 Jordan,0.97
 Kazakhstan,0.929
@@ -108,49 +108,49 @@ Kuwait,1
 Kyrgyz Republic,0.89
 Lao PDR,0.62
 Latvia,1
-Lebanon,0.647
+Lebanon,0.7
 Lesotho,0.77
 Liberia,0.978
-Libya,0.762
+Libya,0.825
 Liechtenstein,1
 Lithuania,1
 Luxembourg,1
 "Macao SAR, China",1
-Madagascar,0.932
-Malawi,0.729
+Madagascar,0.982
+Malawi,0.779
 Malaysia,0.97
-Maldives,0.921
+Maldives,0.971
 Mali,0.842
 Malta,1
-Marshall Islands,0
-Mauritania,0.69
-Mauritius,0.738
+Marshall Islands,0.854
+Mauritania,0.74
+Mauritius,0.946
 Mexico,0.739
-"Micronesia, Fed. Sts.",0.608
+"Micronesia, Fed. Sts.",0.74487
 Moldova,0.838
 Monaco,1
 Mongolia,0.88
 Montenegro,0.94
 Morocco,0.54
 Mozambique,0.87
-Myanmar,0.779
+Myanmar,0.829
 Namibia,0.966
 Nauru,1
 Nepal,0.943
 Netherlands,1
 New Caledonia,1
 New Zealand,1
-Nicaragua,0.834
+Nicaragua,0.884
 Niger,0.938
-Nigeria,0.791
+Nigeria,0.841
 North Macedonia,0.96
 Northern Mariana Islands,1
 Norway,1
 Oman,1
-Pakistan,0.64
-Palau,0
+Pakistan,0.69
+Palau,0.854
 Panama,1
-Papua New Guinea,0.604
+Papua New Guinea,0.654
 Paraguay,0.85
 Peru,0.96
 Philippines,0.859
@@ -159,8 +159,8 @@ Portugal,1
 Puerto Rico,1
 Qatar,1
 Romania,1
-Russian Federation,0.6714
-Rwanda,0.921
+Russian Federation,0.91108
+Rwanda,0.971
 Samoa,0.7
 San Marino,1
 Sao Tome and Principe,0.977
@@ -173,27 +173,27 @@ Singapore,1
 Sint Maarten (Dutch part),1
 Slovak Republic,1
 Slovenia,1
-Solomon Islands,0.608
-Somalia,0.63
-South Africa,0.96
-South Sudan,0.71258
+Solomon Islands,0.74487
+Somalia,0.68
+South Africa,1
+South Sudan,0.76258
 Spain,1
-Sri Lanka,0.68933
+Sri Lanka,0.799
 St. Kitts and Nevis,1
-St. Lucia,0.6768
+St. Lucia,0.85793
 St. Martin (French part),1
-St. Vincent and the Grenadines,0.6768
+St. Vincent and the Grenadines,0.85793
 Sudan,0.717
 Suriname,0.68
 Sweden,1
 Switzerland,1
-Syrian Arab Republic,0.63
+Syrian Arab Republic,0.68
 "Taiwan, China",1
 Tajikistan,0.938
 Tanzania,0.897
-Thailand,0.921
+Thailand,0.971
 Timor-Leste,0.83
-Togo,0.611
+Togo,0.661
 Tonga,0.88
 Trinidad and Tobago,1
 Tunisia,0.84
@@ -208,11 +208,11 @@ United Kingdom,1
 United States,1
 Uruguay,1
 Uzbekistan,0.9
-Vanuatu,0.608
-Venezuela,0.6768
+Vanuatu,0.74487
+Venezuela,0.85793
 Vietnam,0.88
 Virgin Islands (U.S.),1
-West Bank and Gaza,0.647
-"Yemen, Rep.",0.63
+West Bank and Gaza,0.7
+"Yemen, Rep.",0.68
 Zambia,0.64
-Zimbabwe,0.954
+Zimbabwe,1

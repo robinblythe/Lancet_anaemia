@@ -22,41 +22,41 @@ Benin,0.52
 Bermuda,1
 Bhutan,0.799
 Bolivia,0.86
-Bosnia and Herzegovina,0.907
+Bosnia and Herzegovina,0.91108
 Botswana,0.919
 Brazil,0.92
 British Virgin Islands,1
 Brunei Darussalam,1
-Bulgaria,0.907
+Bulgaria,0.91108
 Burkina Faso,0.984
 Burundi,0.49
-Cabo Verde,0.75213
+Cabo Verde,0.86
 Cambodia,0.86
 Cameroon,0.887
 Canada,1
 Cayman Islands,1
-Central African Republic,0.53063
+Central African Republic,0.58063
 Chad,0.663
 Channel Islands,1
 Chile,1
 China,0.93
 Colombia,0.9
 Comoros,0.92
-"Congo, Dem. Rep.",0.72765
+"Congo, Dem. Rep.",0.58063
 Congo,0.856
 Costa Rica,0.94
-Côte d’Ivoire,0.75213
+Côte d’Ivoire,0.954
 Croatia,0.97
 Cuba,0.79
 Curaçao,1
 Cyprus,1
 Czech Republic,1
 Denmark,1
-Djibouti,0.63333
+Djibouti,0.7
 Dominica,0.85793
 Dominican Republic,0.93
 Ecuador,0.713
-"Egypt, Arab Rep.",0.63333
+"Egypt, Arab Rep.",0.9
 El Salvador,0.7785
 Equatorial Guinea,0.946
 Eritrea,0.724
@@ -69,7 +69,7 @@ Finland,1
 France,1
 French Polynesia,1
 Gabon,0.968
-"Gambia, The",0.72765
+"Gambia, The",0.78
 Georgia,0.85
 Germany,1
 Ghana,0.978
@@ -89,7 +89,7 @@ Hungary,1
 Iceland,1
 India,0.58
 Indonesia,0.975
-Iran (Islamic Republic of),0.63333
+Iran (Islamic Republic of),0.7
 Iraq,0.68
 Ireland,1
 Isle of Man,1
@@ -101,14 +101,14 @@ Jordan,0.97
 Kazakhstan,0.929
 Kenya,0.928
 Kiribati,0.67
-"Korea, Dem. People's Rep.",0
+"Korea, Dem. People's Rep.",0.94
 "Korea, Rep.",1
 Kosovo,0.94
 Kuwait,1
-Kyrgyz Republic,0.973
+Kyrgyz Republic,0.89
 Lao PDR,0.62
 Latvia,1
-Lebanon,0.63333
+Lebanon,0.7
 Lesotho,0.77
 Liberia,0.978
 Libya,0.825
@@ -117,7 +117,7 @@ Lithuania,1
 Luxembourg,1
 "Macao SAR, China",1
 Madagascar,0.873
-Malawi,0.758
+Malawi,0.808
 Malaysia,0.97
 Maldives,0.82
 Mali,0.842
@@ -143,7 +143,7 @@ New Zealand,1
 Nicaragua,0.704
 Niger,0.938
 Nigeria,0.63
-North Macedonia,0.907
+North Macedonia,0.96
 Northern Mariana Islands,1
 Norway,1
 Oman,0.74
@@ -159,13 +159,13 @@ Portugal,1
 Puerto Rico,1
 Qatar,1
 Romania,1
-Russian Federation,0.907
+Russian Federation,0.91108
 Rwanda,0.47
 Samoa,0.7
 San Marino,1
 Sao Tome and Principe,0.977
 Saudi Arabia,0.8
-Senegal,0.644
+Senegal,0.694
 Serbia,0.97
 Seychelles,1
 Sierra Leone,0.982
@@ -176,7 +176,7 @@ Slovenia,1
 Solomon Islands,0.74487
 Somalia,0.24
 South Africa,0.931
-South Sudan,0.53063
+South Sudan,0.58063
 Spain,1
 Sri Lanka,0.799
 St. Kitts and Nevis,1
@@ -187,13 +187,13 @@ Sudan,0.717
 Suriname,0.68
 Sweden,1
 Switzerland,1
-Syrian Arab Republic,0.41233
+Syrian Arab Republic,0.45775
 "Taiwan, China",1
 Tajikistan,0.938
 Tanzania,0.897
 Thailand,0.9
 Timor-Leste,0.83
-Togo,0.676
+Togo,0.726
 Tonga,0.88
 Trinidad and Tobago,0.98
 Tunisia,0.84
@@ -212,7 +212,7 @@ Vanuatu,0.74487
 Venezuela,0.85793
 Vietnam,0.88
 Virgin Islands (U.S.),1
-West Bank and Gaza,0.63333
-"Yemen, Rep.",0.41233
-Zambia,0.808
+West Bank and Gaza,0.7
+"Yemen, Rep.",0.594
+Zambia,0.858
 Zimbabwe,0.72

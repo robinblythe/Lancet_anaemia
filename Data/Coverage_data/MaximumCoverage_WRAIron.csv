@@ -23,15 +23,15 @@ Bermuda,1
 Bhutan,0.9
 Bolivia,0.9
 Bosnia and Herzegovina,0.9
-Botswana,0.9
+Botswana,0.95533
 Brazil,0.9
 British Virgin Islands,1
 Brunei Darussalam,1
 Bulgaria,0.9
-Burkina Faso,0.9
+Burkina Faso,1
 Burundi,0.9
 Cabo Verde,0.9
-Cambodia,0.9
+Cambodia,1
 Cameroon,0.9
 Canada,1
 Cayman Islands,1
@@ -54,25 +54,25 @@ Czech Republic,1
 Denmark,1
 Djibouti,0.9
 Dominica,0.9
-Dominican Republic,0.9
+Dominican Republic,1
 Ecuador,0.9
 "Egypt, Arab Rep.",0.9
 El Salvador,0.9
-Equatorial Guinea,0.9
+Equatorial Guinea,0.95533
 Eritrea,0.9
 Estonia,1
-Eswatini,0.9
+Eswatini,0.951
 Ethiopia,0.9
 Faroe Islands,1
 Fiji,0.9
 Finland,1
 France,1
 French Polynesia,1
-Gabon,0.9
-"Gambia, The",0.9
+Gabon,0.983
+"Gambia, The",1
 Georgia,0.9
 Germany,1
-Ghana,0.9
+Ghana,0.975
 Gibraltar,1
 Greece,1
 Greenland,1
@@ -110,7 +110,7 @@ Lao PDR,0.9
 Latvia,1
 Lebanon,0.9
 Lesotho,0.9
-Liberia,0.9
+Liberia,0.99
 Libya,0.9
 Liechtenstein,1
 Lithuania,1
@@ -124,7 +124,7 @@ Mali,0.9
 Malta,1
 Marshall Islands,0.9
 Mauritania,0.9
-Mauritius,0.9
+Mauritius,0.95533
 Mexico,0.9
 "Micronesia, Fed. Sts.",0.9
 Moldova,0.9
@@ -136,7 +136,7 @@ Mozambique,0.9
 Myanmar,0.9
 Namibia,0.9
 Nauru,1
-Nepal,0.9
+Nepal,1
 Netherlands,1
 New Caledonia,1
 New Zealand,1
@@ -163,19 +163,19 @@ Russian Federation,0.9
 Rwanda,0.9
 Samoa,0.9
 San Marino,1
-Sao Tome and Principe,0.9
+Sao Tome and Principe,0.973
 Saudi Arabia,1
-Senegal,0.9
+Senegal,1
 Serbia,0.9
 Seychelles,1
-Sierra Leone,0.9
+Sierra Leone,1
 Singapore,1
 Sint Maarten (Dutch part),1
 Slovak Republic,1
 Slovenia,1
 Solomon Islands,0.9
 Somalia,0.9
-South Africa,0.9
+South Africa,0.951
 South Sudan,0.9
 Spain,1
 Sri Lanka,0.9
@@ -214,5 +214,5 @@ Vietnam,0.9
 Virgin Islands (U.S.),1
 West Bank and Gaza,0.9
 "Yemen, Rep.",0.9
-Zambia,0.9
+Zambia,1
 Zimbabwe,0.9

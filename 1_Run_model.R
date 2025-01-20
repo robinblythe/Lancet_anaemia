@@ -1,16 +1,14 @@
 # Simulate effectiveness
 # Method of moments transformations applied where roughly symmetrical
-# Using https://aushsi.shinyapps.io/ShinyPrior/
+# Transformation uses https://aushsi.shinyapps.io/ShinyPrior/
 # Effectiveness of scaling up iron supplements taken from https://doi.org/10.21203/rs.3.rs-3897976/v1
 vd <- rtri(iter, min = 0.21, mode = 0.38, max = 0.69) # voltage drop
 effectiveness <- list(
   Iron_Preg = 1 - (1 - rbeta(iter, shape1 = 11.468, shape2 = 19.786)) * (1 - vd), # Daily iron in pregnant women
   Iron_WRA = 1 - (1 - rbeta(iter, shape1 = 12.198, shape2 = 16.861)) * (1 - vd), # Daily iron in WRA
   Fortification = rnorm(iter, mean = 0.755, sd = 0.110),
-  # IntIron_WRA = rbeta(iter, shape1 = 14.525, shape2 = 6.285),
   Antimalarial = rbeta(iter, shape1 = 337.799, shape2 = 36.688)
 )
-# effectiveness[["IntIron_Preg"]] <- rnorm(iter, mean = 1.320, sd = 0.245) * effectiveness$DailyIron_Preg
 
 # YLDs from anaemia:
 # https://doi.org/10.1016/S2352-3026(23)00160-6
@@ -64,10 +62,8 @@ df_2030 <- left_join(df_2030, df_2030_by_country, by = join_by(location_name)) |
          Pop_pregnant_anaemic, Pop_pregnant_malaria_anaemic, YLD)
   
 remove(df_2030_by_country)   
-    
 
-
-# Note - if we define costs here, can reduce sampling overhead significantly and reduce sampling variation. Implement later.
+# Sample from cost estimates per iteration
 df_costs <- df_costs_base |>
   rowwise() |>
   mutate(
@@ -97,6 +93,21 @@ df_costs <- df_costs_base |>
     )
   ) |>
   select(location_name, Iron_Preg, Iron_WRA, Antimalarial, Fortification)
+
+# Sample from coverage data per iteration using a 25% change
+# Need to jointly sample or otherwise current coverage may be larger than maximum possible coverage
+perturb <- replicate(8, rnorm(nrow(df_coverage_base), 0, 0.127))
+df_coverage <- df_coverage_base[,c(2:9)] + df_coverage_base[,c(2:9)] * perturb
+df_coverage[df_coverage > 1] <- 1
+df_coverage[df_coverage < 0] <- 0
+df_coverage <- df_coverage |>
+  mutate(Iron_WRA_current = ifelse(Iron_WRA_current > Iron_WRA_max, Iron_WRA_max, Iron_WRA_current),
+         Iron_Preg_current = ifelse(Iron_Preg_current > Iron_Preg_max, Iron_Preg_max, Iron_Preg_current),
+         Antimalarial_current = ifelse(Antimalarial_current > Antimalarial_max, Antimalarial_max, Antimalarial_current),
+         Fortification_current = ifelse(Fortification_current > Fortification_max, Fortification_max, Fortification_current))
+df_coverage$Iron_WRA_current <- with(df_coverage, ifelse(Iron_WRA_current > Iron_WRA_max, Iron_WRA_max, Iron_WRA_current))
+df_coverage <- cbind(df_coverage_base[1], df_coverage)
+remove(perturb)
 
 # Run the simulator function for each intervention:
 # Simulator takes prevalence data, country, intervention name, eligible population (for costs)
@@ -162,7 +173,7 @@ cea0_1 <- cea |>
 # Filter by countries who can cost-effectively apply the intervention
 countrylist_2 <- unique(int1$Country)
 
-remove(cea, int1)
+remove(int1)
 
 # Run simulation for all included countries
 stage1 <- list()

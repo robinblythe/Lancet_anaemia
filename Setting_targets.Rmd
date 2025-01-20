@@ -27,7 +27,7 @@ source("./99_Functions.R")
 # Read in 2030 population estimates, costs, and coverage
 df_prevalence <- readRDS("./Data/est_2030.rds")
 df_costs_base <- readRDS("./Data/costs.rds")
-df_coverage <- readRDS("./Data/coverage.rds")
+df_coverage_base <- readRDS("./Data/coverage.rds")
 
 # Using 1 iteration per draw
 iter <- 1
@@ -37,7 +37,7 @@ df_prevalence <- df_prevalence |>
   filter(location_name %in% Reduce(intersect, list(
     df_prevalence$location_name,
     df_costs_base$location_name,
-    df_coverage$location_name
+    df_coverage_base$location_name
   )))
 
 # Get full country list
@@ -46,7 +46,7 @@ countrylist <- unique(df_prevalence$location_name)
 # Which WTP threshold to use?
 # NB: "Opp_Upper" corresponds to Pichon-Riviere opportunity cost method (base case)
 WTP_list <- c("Opp_Lower", "Opp_Upper", "HCFI_Lower", "HCFI_Upper")
-Threshold <- WTP_list[2]
+Threshold <- WTP_list[1]
 
 WTP <- df_costs_base |>
   select(
@@ -83,22 +83,27 @@ $$
 
 ```{r}
 # Set number of iterations
-n <- 200
+n <- 400
 
 # Prepare parallel computing
 cores <- detectCores()
 cl <- makeCluster(cores - 2)
 registerDoParallel(cl)
 
-# Create output list
-final_reduction <- list()
+# Create output lists
+comb <- function(x, ...){
+  lapply(seq_along(x),
+         function(j) c(x[[j]], lapply(list(...), function(y) y[[j]])))
+}
 
 # Repeat model n times
 set.seed(888)
-final_reduction <- foreach(j = 1:n, .export = ls(), .packages = c("tidyverse", "EnvStats")) %dopar% {
-  source("1_Run_model.R", local = T)
-
-  final_reduction[[j]] <- df_final |>
+sim_results <- foreach(j = 1:n, .combine = "comb", .multicombine = TRUE, .init = list(list(), list()),
+                       .export = ls(), .packages = c("tidyverse", "EnvStats")) %dopar% {
+  
+  try(source("1_Run_model.R", local = T))
+  
+  list(df_final |>
     rename(
       Pop_pregnant_anaemic_post = Pop_pregnant_anaemic,
       Pop_pregnant_malaria_anaemic_post = Pop_pregnant_malaria_anaemic,
@@ -106,7 +111,7 @@ final_reduction <- foreach(j = 1:n, .export = ls(), .packages = c("tidyverse", "
       YLD_post = YLD
     ) |>
     full_join(df_2030,
-      by = join_by(location_name, rei_name, Anaemia_rate, Pop_wra, Pop_total, Pop_pregnant)
+      by = join_by(location_name, rei_name, Pop_wra, Pop_total, Pop_pregnant)
     ) |>
     mutate(
       Change_anaemic = Pop_anaemic_post - Pop_anaemic,
@@ -132,31 +137,37 @@ final_reduction <- foreach(j = 1:n, .export = ls(), .packages = c("tidyverse", "
       DALYs_averted = YLD_post - YLD_pre,
       Pct_change_YLD = (YLD_pre - YLD_post) / YLD_pre,
       Iteration = j
-    )
+    ),
+    cea |>
+      mutate(Iteration = j)
+  )
 }
 
-results <- do.call(rbind, final_reduction)
+results <- do.call(rbind, sim_results[[1]])
+league_tables <- do.call(rbind, sim_results[[2]])
+
+write_csv(results, file = paste0("sim_results_", Threshold, ".csv"))
+#write_csv(league_tables, file = "league_tables.csv")
 
 change <- results |>
   group_by(Country) |>
   summarise(
     change_median = median(Pct_change_anaemic),
-    change_low = quantile(Pct_change_anaemic, 0.025),
-    change_high = quantile(Pct_change_anaemic, 0.975),
+    change_low = quantile(Pct_change_anaemic, 0.025, na.rm = T),
+    change_high = quantile(Pct_change_anaemic, 0.975, na.rm = T),
     DALYs_prevented_median = median(DALYs_averted),
-    DALYs_prevented_low = quantile(DALYs_averted, 0.975),
-    DALYs_prevented_high = quantile(DALYs_averted, 0.025)
+    DALYs_prevented_low = quantile(DALYs_averted, 0.975, na.rm = T),
+    DALYs_prevented_high = quantile(DALYs_averted, 0.025, na.rm = T)
   )
 
-
-save(change, results, final_reduction, file = "sim_results.RData")
-write_csv(change, file = "simulation_results.csv")
+write_csv(change, file = paste0("targets_", Threshold, ".csv"))
+saveRDS(change, file = paste0("sim_results_", Threshold, ".rds"))
 ```
 
 The visualisation plan is for league tables by region, with regions as facets on the Y-axis (vertical), and cost/DALY on the X-axis (horizontal) with a dashed line for each facet denoting the regional WTP and a density plot for each distribution of cost/YLD by simulation.
 
 ```{r}
-load("sim_results.RData")
+change <- readRDS("sim_results_Opp_Upper.rds")
 
 # Results
 c(Mean = mean(change$change_median), Low = mean(change$change_low), High = mean(change$change_high))
