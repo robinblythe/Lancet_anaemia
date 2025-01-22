@@ -46,7 +46,7 @@ countrylist <- unique(df_prevalence$location_name)
 # Which WTP threshold to use?
 # NB: "Opp_Upper" corresponds to Pichon-Riviere opportunity cost method (base case)
 WTP_list <- c("Opp_Lower", "Opp_Upper", "HCFI_Lower", "HCFI_Upper")
-Threshold <- WTP_list[1]
+Threshold <- WTP_list[3]
 
 WTP <- df_costs_base |>
   select(
@@ -152,10 +152,10 @@ write_csv(results, file = paste0("sim_results_", Threshold, ".csv"))
 change <- results |>
   group_by(Country) |>
   summarise(
-    change_median = median(Pct_change_anaemic),
+    change_median = median(Pct_change_anaemic, na.rm = T),
     change_low = quantile(Pct_change_anaemic, 0.025, na.rm = T),
     change_high = quantile(Pct_change_anaemic, 0.975, na.rm = T),
-    DALYs_prevented_median = median(DALYs_averted),
+    DALYs_prevented_median = median(DALYs_averted, na.rm = T),
     DALYs_prevented_low = quantile(DALYs_averted, 0.975, na.rm = T),
     DALYs_prevented_high = quantile(DALYs_averted, 0.025, na.rm = T)
   )
