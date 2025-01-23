@@ -59,7 +59,7 @@ pregnancy <- inner_join(fert, still) |>
     Pr_pregnant_mid = ((Fertility_Rate * 0.75) + (still * 0.65)) / 34, # 34 = weeks of pregnancy
     Pr_pregnant_low = ((Fertility_Rate * 0.75) + (still_low * 0.65)) / 34,
     Pr_pregnant_high = ((Fertility_Rate * 0.75) + (still_high * 0.65)) / 34
-  ) |> 
+  ) |>
   select("location_name", "year_id", "Pr_pregnant_mid", "Pr_pregnant_low", "Pr_pregnant_high")
 
 remove(fert, still)

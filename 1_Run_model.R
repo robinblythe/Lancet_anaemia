@@ -25,7 +25,8 @@ df_2030 <- df_prevalence |>
       min = Prev_low,
       mode = Prevalence,
       max = Prev_high
-    )) |>
+    )
+  ) |>
   ungroup()
 
 df_2030_by_country <- df_prevalence |>
@@ -57,11 +58,13 @@ df_2030 <- left_join(df_2030, df_2030_by_country, by = join_by(location_name)) |
       rei_name == "Severe anemia" ~ YLD_severe * Pop_anaemic
     )
   ) |>
-  select(location_name, rei_name, Pop_wra, Pop_total, 
-         Pop_anaemic, Pop_pregnant, Pop_pregnant_malarial, 
-         Pop_pregnant_anaemic, Pop_pregnant_malaria_anaemic, YLD)
-  
-remove(df_2030_by_country)   
+  select(
+    location_name, rei_name, Pop_wra, Pop_total,
+    Pop_anaemic, Pop_pregnant, Pop_pregnant_malarial,
+    Pop_pregnant_anaemic, Pop_pregnant_malaria_anaemic, YLD
+  )
+
+remove(df_2030_by_country)
 
 # Sample from cost estimates per iteration
 df_costs <- df_costs_base |>
@@ -97,14 +100,16 @@ df_costs <- df_costs_base |>
 # Sample from coverage data per iteration using a 25% change
 # Need to jointly sample or otherwise current coverage may be larger than maximum possible coverage
 perturb <- replicate(8, rnorm(nrow(df_coverage_base), 0, 0.127))
-df_coverage <- df_coverage_base[,c(2:9)] + df_coverage_base[,c(2:9)] * perturb
+df_coverage <- df_coverage_base[, c(2:9)] + df_coverage_base[, c(2:9)] * perturb
 df_coverage[df_coverage > 1] <- 1
 df_coverage[df_coverage < 0] <- 0
 df_coverage <- df_coverage |>
-  mutate(Iron_WRA_current = ifelse(Iron_WRA_current > Iron_WRA_max, Iron_WRA_max, Iron_WRA_current),
-         Iron_Preg_current = ifelse(Iron_Preg_current > Iron_Preg_max, Iron_Preg_max, Iron_Preg_current),
-         Antimalarial_current = ifelse(Antimalarial_current > Antimalarial_max, Antimalarial_max, Antimalarial_current),
-         Fortification_current = ifelse(Fortification_current > Fortification_max, Fortification_max, Fortification_current))
+  mutate(
+    Iron_WRA_current = ifelse(Iron_WRA_current > Iron_WRA_max, Iron_WRA_max, Iron_WRA_current),
+    Iron_Preg_current = ifelse(Iron_Preg_current > Iron_Preg_max, Iron_Preg_max, Iron_Preg_current),
+    Antimalarial_current = ifelse(Antimalarial_current > Antimalarial_max, Antimalarial_max, Antimalarial_current),
+    Fortification_current = ifelse(Fortification_current > Fortification_max, Fortification_max, Fortification_current)
+  )
 df_coverage$Iron_WRA_current <- with(df_coverage, ifelse(Iron_WRA_current > Iron_WRA_max, Iron_WRA_max, Iron_WRA_current))
 df_coverage <- cbind(df_coverage_base[1], df_coverage)
 remove(perturb)
