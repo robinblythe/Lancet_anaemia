@@ -20,7 +20,7 @@ rollup <- function(population) {
         Prevalence = ceiling(sum(val)),
         Prev_low = ceiling(sum(lower)),
         Prev_high = ceiling(sum(upper))
-      ) |> 
+      ) |>
       ungroup() |>
       select(location_name, year_id, rei_name, Prevalence, Prev_low, Prev_high)
   } else if (population == "wra") { # Women of reproductive age
@@ -71,6 +71,15 @@ rollup <- function(population) {
   }
 }
 
+rtri_catch <- function(n, min, mode, max) {
+  tryCatch(
+    rtri(n, min, mode, max),
+    error = function(e) {
+      runif(n, min, max)
+    }
+  )
+}
+
 # Population calls must be in quotes
 # Note that we can introduce population uncertainty here in the prevalence data, which is recycled over n.iter
 simulator <- function(prev_data, country, intervention) {
@@ -78,14 +87,14 @@ simulator <- function(prev_data, country, intervention) {
   df_costs <- df_costs |> filter(location_name == country)
   df_coverage <- df_coverage |> filter(location_name == country)
   prev_data <- prev_data |> filter(location_name == country)
-  
+
   # Determine eligible population for intervention (who receives it)
   Pop_eligible <- case_when(
     intervention %in% c("Iron_Preg", "Antimalarial") ~ "Pop_pregnant",
     intervention == "Iron_WRA" ~ "Pop_wra",
     intervention == "Fortification" ~ "Pop_total"
   )
-  
+
   # Determine targeted population for intervention (who benefits from it)
   Pop_targeted <- case_when(
     intervention == "Iron_Preg" ~ "Pop_pregnant_anaemic",
@@ -196,11 +205,59 @@ apply_intervention <- function(base_data, cea_table) {
 }
 
 
-rtri_catch <- function(n, min, mode, max){
-  tryCatch(
-    rtri(n, min, mode, max),
-    error = function(e){
-      runif(n, min, max)
-    }
-  )
+# Replace empty simulation results
+replace_empty <- function(data) {
+  # Determine how many sims to run for replacement
+  n_replace <- length(unique(subset(data, is.na(Pct_change_anaemic))$Iteration))
+  # Replace empty rows with re-run data
+  replacements <- list()
+  for (j in 1:n_replace) {
+    # Rerun model
+    try(source("1_Run_model.R"))
+    df_final <- df_final |>
+      rename(
+        Pop_pregnant_anaemic_post = Pop_pregnant_anaemic,
+        Pop_pregnant_malaria_anaemic_post = Pop_pregnant_malaria_anaemic,
+        Pop_anaemic_post = Pop_anaemic,
+        YLD_post = YLD
+      ) |>
+      full_join(df_2030,
+        by = join_by(location_name, rei_name, Pop_wra, Pop_total, Pop_pregnant)
+      ) |>
+      mutate(
+        Change_anaemic = Pop_anaemic_post - Pop_anaemic,
+        Pct_change_anaemic = Change_anaemic / Pop_anaemic
+      ) |>
+      rename(
+        Country = location_name,
+        Anaemia_severity = rei_name,
+        Pop_pregnant_anaemic_pre = Pop_pregnant_anaemic,
+        Pop_pregnant_malaria_anaemic_pre = Pop_pregnant_malaria_anaemic,
+        Pop_anaemic_pre = Pop_anaemic,
+        YLD_pre = YLD
+      ) |>
+      group_by(Country) |>
+      summarise(
+        anaemic_pre = sum(Pop_anaemic_pre),
+        anaemic_post = sum(Pop_anaemic_post),
+        YLD_pre = sum(YLD_pre),
+        YLD_post = sum(YLD_post)
+      ) |>
+      mutate(
+        Pct_change_anaemic = (anaemic_pre - anaemic_post) / anaemic_pre,
+        DALYs_averted = YLD_post - YLD_pre,
+        Pct_change_YLD = (YLD_pre - YLD_post) / YLD_pre,
+        Iteration = NA_real_
+      )
+
+    replacements[[j]] <- df_final
+  }
+  
+  # Identify failed iterations and remove them, then join updates to original dataframe
+  failed <- unique(data$Iteration[is.na(data$Pct_change_anaemic)])
+  df_updated <- data |>
+    filter(!(Iteration  %in% failed)) |>
+    rbind.data.frame(do.call(rbind, replacements))
+  return(df_updated)
+    
 }
