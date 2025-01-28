@@ -29,6 +29,10 @@ df_prevalence <- readRDS("./Data/est_2030.rds")
 df_costs_base <- readRDS("./Data/costs.rds")
 df_coverage_base <- readRDS("./Data/coverage.rds")
 
+# Add a global WTP threshold
+df_costs_base$WTP_Global <- mean(df_costs_base$WTP_Opp_Upper)
+df_costs_base$WTP_Near_Infinite <- 10^10
+
 # Using 1 iteration per draw
 iter <- 1
 
@@ -45,8 +49,8 @@ countrylist <- unique(df_prevalence$location_name)
 
 # Which WTP threshold to use?
 # NB: "Opp_Upper" corresponds to Pichon-Riviere opportunity cost method (base case)
-WTP_list <- c("Opp_Lower", "Opp_Upper", "HCFI_Lower", "HCFI_Upper")
-Threshold <- WTP_list[3]
+WTP_list <- c("Opp_Lower", "Opp_Upper", "HCFI_Lower", "HCFI_Upper", "Global", "Near_Infinite")
+Threshold <- WTP_list[6]
 
 WTP <- df_costs_base |>
   select(
@@ -71,13 +75,13 @@ interventions <- c(
 ```
 
 The basic structure of the league table idea is as follows:  
-- Obtain the cost of each intervention per person and multiply by the increase in eligible population (e.g., pregnant women not currently receiving the intervention)  
-- Obtain the effectiveness (RR) of each intervention, enter that into the following formula with given current and maximum coverage:  
+- Obtain the cost of each intervention per person and multiply by the increase in eligible population (e.g., pregnant women not currently receiving the intervention) 
+- Obtain the effectiveness (RR) of each intervention, enter that into the following formula with given current and maximum coverage:
 $$
 \theta = \frac{1 - c_{max}(1 - RR)}{1 - c_{current}(1 - RR)}
 $$
 - Now multiply theta by the target population (e.g. pregnant anaemic women) of each type of anaemia: mild, moderate, and severe, and obtain the YLD for each type
-- Divide costs by YLD and sort ascending  
+- Divide costs by YLD and sort ascending
 - Pick the top option and then remove that intervention from the list  
 - Repeat
 
@@ -173,7 +177,7 @@ saveRDS(change, file = paste0("sim_results_", Threshold, ".rds"))
 The visualisation plan is for league tables by region, with regions as facets on the Y-axis (vertical), and cost/DALY on the X-axis (horizontal) with a dashed line for each facet denoting the regional WTP and a density plot for each distribution of cost/YLD by simulation.
 
 ```{r}
-change <- readRDS("sim_results_Opp_Upper.rds")
+change <- readRDS("sim_results_Near_Infinite.rds")
 
 # Results
 c(Mean = mean(change$change_median), Low = mean(change$change_low), High = mean(change$change_high))
