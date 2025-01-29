@@ -94,21 +94,13 @@ cores <- detectCores()
 cl <- makeCluster(cores - 2)
 registerDoParallel(cl)
 
-# Create output lists
-comb <- function(x, ...) {
-  lapply(
-    seq_along(x),
-    function(j) c(x[[j]], lapply(list(...), function(y) y[[j]]))
-  )
-}
-
 # Repeat model n times
 set.seed(888)
 sim_results <- foreach(
   j = 1:n, .combine = "comb", .multicombine = TRUE, .init = list(list(), list()),
   .export = ls(), .packages = c("tidyverse", "EnvStats")
 ) %dopar% {
-  try(source("1_Run_model.R", local = T))
+  tryCatch(source("1_Run_model.R", local = T))
 
   list(
     df_final |>
@@ -152,12 +144,12 @@ sim_results <- foreach(
 }
 
 results <- do.call(rbind, sim_results[[1]])
-league_tables <- do.call(rbind, sim_results[[2]])
+if (Threshold == "Opp_Upper") league_tables <- do.call(rbind, sim_results[[2]])
 
 if (nrow(results) > nrow(na.omit(results))) results <- replace_empty(results)
 
 write_csv(results, file = paste0("sim_results_", Threshold, ".csv"))
-# write_csv(league_tables, file = "league_tables.csv")
+#write_csv(league_tables, file = "league_tables.csv")
 
 change <- results |>
   group_by(Country) |>
@@ -177,32 +169,11 @@ saveRDS(change, file = paste0("sim_results_", Threshold, ".rds"))
 The visualisation plan is for league tables by region, with regions as facets on the Y-axis (vertical), and cost/DALY on the X-axis (horizontal) with a dashed line for each facet denoting the regional WTP and a density plot for each distribution of cost/YLD by simulation.
 
 ```{r}
-change <- readRDS("sim_results_Near_Infinite.rds")
+#change <- readRDS("sim_results_Near_Infinite.rds")
 
 # Results
 c(Mean = mean(change$change_median), Low = mean(change$change_low), High = mean(change$change_high))
 
-# Data viz
-country_details <- df_coverage |>
-  rename(
-    Income_group = `Income group`,
-    Country = location_name
-  ) |>
-  select(Country, Region, Income_group)
-
-p <- change |>
-  left_join(country_details, by = join_by(Country)) |>
-  ggplot()
-remove(country_details)
-
-p +
-  geom_density(aes(x = change, fill = Income_group), alpha = 0.5) +
-  # facet_wrap(vars(Region), scales = "free_y") +
-  theme_bw() +
-  labs(
-    x = "Maximum feasible reduction in anaemia prevalence (%)",
-    y = "Frequency"
-  )
 ```
 
 

@@ -4,10 +4,10 @@
 # Effectiveness of scaling up iron supplements taken from https://doi.org/10.21203/rs.3.rs-3897976/v1
 vd <- rtri(iter, min = 0.21, mode = 0.38, max = 0.69) # voltage drop
 effectiveness <- list(
-  Iron_Preg = 1 - (1 - rbeta(iter, shape1 = 11.468, shape2 = 19.786)) * (1 - vd), # Daily iron in pregnant women
-  Iron_WRA = 1 - (1 - rbeta(iter, shape1 = 12.198, shape2 = 16.861)) * (1 - vd), # Daily iron in WRA
-  Fortification = rnorm(iter, mean = 0.755, sd = 0.110),
-  Antimalarial = rbeta(iter, shape1 = 337.799, shape2 = 36.688)
+  "Iron_Preg" = 1 - (1 - rbeta(iter, shape1 = 11.468, shape2 = 19.786)) * (1 - vd), # Daily iron in pregnant women
+  "Iron_WRA" = 1 - (1 - rbeta(iter, shape1 = 12.198, shape2 = 16.861)) * (1 - vd), # Daily iron in WRA
+  "Fortification" = rnorm(iter, mean = 0.760, sd = 0.107),
+  "Antimalarial" = rbeta(iter, shape1 = 337.799, shape2 = 36.688)
 )
 
 # YLDs from anaemia:
@@ -150,7 +150,7 @@ cea <- do.call(rbind, stage0) |>
   left_join(WTP,
     by = join_by(Country)
   )
-remove(stage0, sims)
+remove(stage0, sims, country, i)
 
 # Identify intervention 1 for each country
 int1 <- cea |>
@@ -158,11 +158,6 @@ int1 <- cea |>
   filter(Cost_per_YLD <= WTP) |>
   group_by(Country) |>
   slice(1)
-
-# Obtain the estimate of how much this will cost to implement
-total_spend <- int1 |>
-  select(Country, Cost) |>
-  rename(Total_spend_1 = Cost)
 
 # Apply intervention 1 to each country if cost-effective using applicator function
 # Applicator function takes the above intervention table and extracts the intervention,
@@ -216,14 +211,6 @@ int2 <- cea1 |>
   group_by(Country) |>
   slice(1)
 
-total_spend <- int2 |>
-  select(Country, Cost) |>
-  rename(Total_spend_2 = Cost) |>
-  full_join(total_spend,
-    by = join_by(Country)
-  )
-
-
 # Apply intervention 2 to each country
 df_stage2 <- apply_intervention(base_data = df_stage1, cea_table = int2)
 
@@ -270,16 +257,8 @@ int3 <- cea2 |>
   group_by(Country) |>
   slice(1)
 
-total_spend <- int3 |>
-  select(Country, Cost) |>
-  rename(Total_spend_3 = Cost) |>
-  full_join(total_spend,
-    by = join_by(Country)
-  )
-
 # Apply intervention 3 to each country
 df_stage3 <- apply_intervention(base_data = df_stage2, cea_table = int3)
-
 
 cea2_3 <- cea2 |>
   group_by(Country) |>
@@ -287,45 +266,43 @@ cea2_3 <- cea2 |>
   select(, 1:2)
 
 countrylist_4 <- unique(int3$Country)
-
 remove(cea2, df_stage2, country, i)
 
-stage3 <- list()
-for (i in 1:length(countrylist_4)) {
-  country <- countrylist_4[i]
-
-  stage3[[i]] <- simulator(df_stage3, country, cea2_3$Intervention[cea2_3$Country == country][1]) |>
-    group_by(Intervention) |>
-    mutate(Country = country) |>
-    relocate(Country, .before = Intervention) |>
-    select(-location_name) |>
-    arrange(Cost_per_YLD)
+if (identical(countrylist_4, character(0))){
+  df_final <- df_stage3
+} else {
+  
+  stage3 <- list()
+  for (i in 1:length(countrylist_4)) {
+    country <- countrylist_4[i]
+    
+    stage3[[i]] <- simulator(df_stage3, country, cea2_3$Intervention[cea2_3$Country == country][1]) |>
+      group_by(Intervention) |>
+      mutate(Country = country) |>
+      relocate(Country, .before = Intervention) |>
+      select(-location_name) |>
+      arrange(Cost_per_YLD)
+  }
+  
+  cea3 <- do.call(rbind, stage3) |>
+    left_join(WTP,
+              by = join_by(Country)
+    )
+  remove(stage3, cea2_3, countrylist_4, int3)
+  
+  
+  # Identify intervention 4
+  int4 <- cea3 |>
+    na.omit() |>
+    filter(Cost_per_YLD <= WTP) |>
+    group_by(Country) |>
+    slice(1)
+  
+  # Apply intervention 4 to each country
+  # In reality there is no intervention 4; no countries retain cost-effectiveness for the 4th intervention
+  df_final <- apply_intervention(base_data = df_stage3, cea_table = int4)
+  
+  remove(cea3, df_stage3, int3, int4)
+  
 }
 
-cea3 <- do.call(rbind, stage3) |>
-  left_join(WTP,
-    by = join_by(Country)
-  )
-remove(stage3, cea2_3, countrylist_4)
-
-
-# Identify intervention 4
-int4 <- cea3 |>
-  na.omit() |>
-  filter(Cost_per_YLD <= WTP) |>
-  group_by(Country) |>
-  slice(1)
-
-total_spend <- int4 |>
-  select(Country, Cost) |>
-  rename(Total_spend_4 = Cost) |>
-  full_join(total_spend,
-    by = join_by(Country)
-  ) |>
-  suppressWarnings()
-
-# Apply intervention 4 to each country
-# In reality there is no intervention 4; no countries retain cost-effectiveness for the 4th intervention
-df_final <- apply_intervention(base_data = df_stage3, cea_table = int4)
-
-remove(cea3, df_stage3, int3, int4)

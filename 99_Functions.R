@@ -105,7 +105,7 @@ simulator <- function(prev_data, country, intervention) {
   # Get coverage of intervention
   coverage_max <- as.numeric(df_coverage[, grepl(paste0(intervention, "_max"), names(df_coverage))])
   coverage_current <- as.numeric(df_coverage[, grepl(paste0(intervention, "_current"), names(df_coverage))])
-
+  
   df <- tibble(
     location_name = country,
     Intervention = intervention,
@@ -202,6 +202,8 @@ apply_intervention <- function(base_data, cea_table) {
       Pop_anaemic = Pop_anaemic_n,
       YLD = YLD_n
     )
+  
+  return(df_stage)
 }
 
 
@@ -260,4 +262,13 @@ replace_empty <- function(data) {
     rbind.data.frame(do.call(rbind, replacements))
   return(df_updated)
     
+}
+
+
+# Create output lists
+comb <- function(x, ...) {
+  lapply(
+    seq_along(x),
+    function(j) c(x[[j]], lapply(list(...), function(y) y[[j]]))
+  )
 }
