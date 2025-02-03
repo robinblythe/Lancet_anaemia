@@ -144,12 +144,15 @@ sim_results <- foreach(
 }
 
 results <- do.call(rbind, sim_results[[1]])
-if (Threshold == "Opp_Upper") league_tables <- do.call(rbind, sim_results[[2]])
+if (Threshold == "Opp_Upper") {
+  league_tables <- do.call(rbind, sim_results[[2]])
+  write_csv(league_tables, file = "league_tables.csv")
+  }
 
 if (nrow(results) > nrow(na.omit(results))) results <- replace_empty(results)
 
 write_csv(results, file = paste0("sim_results_", Threshold, ".csv"))
-#write_csv(league_tables, file = "league_tables.csv")
+
 
 change <- results |>
   group_by(Country) |>
@@ -164,6 +167,8 @@ change <- results |>
 
 write_csv(change, file = paste0("targets_", Threshold, ".csv"))
 saveRDS(change, file = paste0("sim_results_", Threshold, ".rds"))
+
+c(Mean = mean(change$change_median), Low = mean(change$change_low), High = mean(change$change_high))
 ```
 
 The visualisation plan is for league tables by region, with regions as facets on the Y-axis (vertical), and cost/DALY on the X-axis (horizontal) with a dashed line for each facet denoting the regional WTP and a density plot for each distribution of cost/YLD by simulation.
