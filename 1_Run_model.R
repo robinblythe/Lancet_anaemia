@@ -4,8 +4,8 @@
 # Effectiveness of scaling up iron supplements taken from https://doi.org/10.21203/rs.3.rs-3897976/v1
 vd <- rtri(iter, min = 0.21, mode = 0.38, max = 0.69) # voltage drop
 effectiveness <- list(
-  "Iron_Preg" = 1 - (1 - rbeta(iter, shape1 = 11.468, shape2 = 19.786)) * (1 - vd), # Daily iron in pregnant women
-  "Iron_WRA" = 1 - (1 - rbeta(iter, shape1 = 12.198, shape2 = 16.861)) * (1 - vd), # Daily iron in WRA
+  "Iron_Preg" = 1 - (1 - rbeta(iter, shape1 = 22.598, shape2 = 47.251)) * (1 - vd), # Daily iron in pregnant women
+  "Iron_WRA" = 1 - (1 - rbeta(iter, shape1 = 23.118, shape2 = 11.392)) * (1 - vd), # Intermittent iron in WRA
   "Fortification" = rnorm(iter, mean = 0.760, sd = 0.107),
   "Antimalarial" = rbeta(iter, shape1 = 337.799, shape2 = 36.688)
 )

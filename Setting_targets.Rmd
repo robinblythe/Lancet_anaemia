@@ -61,10 +61,8 @@ WTP <- df_costs_base |>
     Country = location_name,
     WTP = paste0("WTP_", Threshold)
   )
-```
 
-There are 4 interventions we will consider in this list.  However, the iron supplementation program will be modified depending on the baseline prevalence of anaemia in the population, which affects whether it will be implemented daily or intermittently.
-```{r}
+
 # List of interventions:
 interventions <- c(
   "Iron_Preg", # Iron and folic acid supplementation in pregnant women
@@ -73,6 +71,7 @@ interventions <- c(
   "Antimalarial" # Antenatal intermittent antimalarials
 )
 ```
+
 
 The basic structure of the league table idea is as follows:  
 - Obtain the cost of each intervention per person and multiply by the increase in eligible population (e.g., pregnant women not currently receiving the intervention) 
@@ -85,6 +84,9 @@ $$
 - Pick the top option and then remove that intervention from the list  
 - Repeat
 
+
+Set up parallel compute:
+
 ```{r}
 # Set number of iterations
 n <- 400
@@ -93,7 +95,11 @@ n <- 400
 cores <- detectCores()
 cl <- makeCluster(cores - 2)
 registerDoParallel(cl)
+```
 
+Run the simulations:
+
+```{r}
 # Repeat model n times
 set.seed(888)
 sim_results <- foreach(
