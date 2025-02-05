@@ -174,7 +174,7 @@ c(Mean = mean(change$change_median), Low = mean(change$change_low), High = mean(
 The visualisation plan is for league tables by region, with regions as facets on the Y-axis (vertical), and cost/DALY on the X-axis (horizontal) with a dashed line for each facet denoting the regional WTP and a density plot for each distribution of cost/YLD by simulation.
 
 ```{r}
-#change <- readRDS("sim_results_Near_Infinite.rds")
+change <- readRDS("sim_results_Global.rds")
 
 # Results
 c(Mean = mean(change$change_median), Low = mean(change$change_low), High = mean(change$change_high))

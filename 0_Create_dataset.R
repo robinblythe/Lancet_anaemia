@@ -56,7 +56,7 @@ pregnancy <- inner_join(fert, still) |>
     still = Median / 1000 * Fertility_Rate,
     still_low = Lower / 1000 * Fertility_Rate,
     still_high = Upper / 1000 * Fertility_Rate,
-    Pr_pregnant_mid = ((Fertility_Rate * 0.75) + (still * 0.65)) / 34, # 34 = weeks of pregnancy
+    Pr_pregnant_mid = ((Fertility_Rate * 0.75) + (still * 0.65)) / 34, # 34 = years of reproductive age
     Pr_pregnant_low = ((Fertility_Rate * 0.75) + (still_low * 0.65)) / 34,
     Pr_pregnant_high = ((Fertility_Rate * 0.75) + (still_high * 0.65)) / 34
   ) |>
