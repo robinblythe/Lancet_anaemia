@@ -155,7 +155,7 @@ remove(stage0, sims, country, i)
 # Identify intervention 1 for each country
 int1 <- cea |>
   na.omit() |>
-  filter(Cost_per_YLD <= WTP) |>
+  filter(Cost_per_YLD <= WTP & Cost_per_YLD > 0) |>
   group_by(Country) |>
   slice(1)
 
@@ -207,7 +207,7 @@ remove(stage1, sims, cea0_1, countrylist_2)
 # Identify intervention 2
 int2 <- cea1 |>
   na.omit() |>
-  filter(Cost_per_YLD <= WTP) |>
+  filter(Cost_per_YLD <= WTP & Cost_per_YLD > 0) |>
   group_by(Country) |>
   slice(1)
 
@@ -253,7 +253,7 @@ remove(stage2, sims, cea1_2, countrylist_3)
 # Identify intervention 3
 int3 <- cea2 |>
   na.omit() |>
-  filter(Cost_per_YLD <= WTP) |>
+  filter(Cost_per_YLD <= WTP & Cost_per_YLD > 0) |>
   group_by(Country) |>
   slice(1)
 
@@ -294,7 +294,7 @@ if (identical(countrylist_4, character(0))){
   # Identify intervention 4
   int4 <- cea3 |>
     na.omit() |>
-    filter(Cost_per_YLD <= WTP) |>
+    filter(Cost_per_YLD <= WTP & Cost_per_YLD > 0) |>
     group_by(Country) |>
     slice(1)
   
