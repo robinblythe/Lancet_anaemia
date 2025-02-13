@@ -50,7 +50,7 @@ countrylist <- unique(df_prevalence$location_name)
 # Which WTP threshold to use?
 # NB: "Opp_Upper" corresponds to Pichon-Riviere opportunity cost method (base case)
 WTP_list <- c("Opp_Lower", "Opp_Upper", "HCFI_Lower", "HCFI_Upper", "Global", "Near_Infinite")
-Threshold <- WTP_list[1]
+Threshold <- WTP_list[6]
 
 WTP <- df_costs_base |>
   select(
@@ -178,14 +178,5 @@ mean(change$change_median)
 ```
 
 The visualisation plan is for league tables by region, with regions as facets on the Y-axis (vertical), and cost/DALY on the X-axis (horizontal) with a dashed line for each facet denoting the regional WTP and a density plot for each distribution of cost/YLD by simulation.
-
-```{r}
-check <- read.csv("sim_results_HCFI_Upper.csv")
-
-# Sanity checks
-min(check$Pct_change_anaemic)
-
-```
-
 
 

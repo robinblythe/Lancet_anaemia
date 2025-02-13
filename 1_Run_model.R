@@ -6,8 +6,8 @@ vd <- rtri(iter, min = 0.21, mode = 0.38, max = 0.69) # voltage drop
 effectiveness <- list(
   "Iron_Preg" = 1 - (1 - rbeta(iter, shape1 = 22.598, shape2 = 47.251)) * (1 - vd), # Daily iron in pregnant women
   "Iron_WRA" = 1 - (1 - rbeta(iter, shape1 = 23.118, shape2 = 11.392)) * (1 - vd), # Intermittent iron in WRA
-  "Fortification" = rnorm(iter, mean = 0.760, sd = 0.107),
-  "Antimalarial" = rbeta(iter, shape1 = 337.799, shape2 = 36.688)
+  "Fortification" = rbeta(iter, shape1 = 16.838, shape2 = 5.602),
+  "Antimalarial" = rnorm(iter, mean = 0.710, sd = 0.045)
 )
 
 # YLDs from anaemia:

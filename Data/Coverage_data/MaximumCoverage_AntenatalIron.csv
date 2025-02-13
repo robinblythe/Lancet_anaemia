@@ -37,7 +37,6 @@ Canada,1
 Cayman Islands,1
 Central African Republic,0.76258
 Chad,0.836
-Channel Islands,1
 Chile,1
 China,0.93
 Colombia,0.9
@@ -46,7 +45,7 @@ Comoros,0.977
 Congo,0.856
 Costa Rica,0.94
 Côte d’Ivoire,0.954
-Croatia,1
+Croatia,0.97
 Cuba,0.79
 Curaçao,1
 Cyprus,1
@@ -80,7 +79,7 @@ Grenada,0.85793
 Guam,1
 Guatemala,0.964
 Guinea,0.913
-Guinea-Bissau,0.81
+Guinea-Bissau,1
 Guyana,0.85
 Haiti,0.855
 Honduras,0.88
@@ -117,7 +116,7 @@ Lithuania,1
 Luxembourg,1
 "Macao SAR, China",1
 Madagascar,0.982
-Malawi,0.779
+Malawi,0.758
 Malaysia,0.97
 Maldives,0.971
 Mali,0.842
@@ -146,7 +145,7 @@ Nigeria,0.841
 North Macedonia,0.96
 Northern Mariana Islands,1
 Norway,1
-Oman,1
+Oman,0.86
 Pakistan,0.69
 Palau,0.854
 Panama,1
@@ -164,8 +163,8 @@ Rwanda,0.971
 Samoa,0.7
 San Marino,1
 Sao Tome and Principe,0.977
-Saudi Arabia,1
-Senegal,0.29
+Saudi Arabia,0.86
+Senegal,0.644
 Serbia,0.97
 Seychelles,1
 Sierra Leone,0.982
@@ -193,20 +192,20 @@ Tajikistan,0.938
 Tanzania,0.897
 Thailand,0.971
 Timor-Leste,0.83
-Togo,0.661
+Togo,0.676
 Tonga,0.88
-Trinidad and Tobago,1
+Trinidad and Tobago,0.98
 Tunisia,0.84
 Turkey,0.9
 Turkmenistan,0.98
-Turks and Caicos Islands,1
-Tuvalu,0.6
+Turks and Caicos Islands,0.93
+Tuvalu,0.658
 Uganda,0.958
 Ukraine,0.99
 United Arab Emirates,1
 United Kingdom,1
 United States,1
-Uruguay,1
+Uruguay,0.97
 Uzbekistan,0.9
 Vanuatu,0.74487
 Venezuela,0.85793
@@ -214,5 +213,5 @@ Vietnam,0.88
 Virgin Islands (U.S.),1
 West Bank and Gaza,0.7
 "Yemen, Rep.",0.68
-Zambia,0.64
+Zambia,0.808
 Zimbabwe,1

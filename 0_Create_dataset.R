@@ -137,5 +137,3 @@ saveRDS(df_2030, file = "./Data/est_2030.rds")
 saveRDS(df_costs, file = "./Data/costs.rds")
 saveRDS(df_coverage, file = "./Data/coverage.rds")
 
-rm(list = ls())
-gc()
