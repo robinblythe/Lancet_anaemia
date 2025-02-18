@@ -152,12 +152,12 @@ sim_results <- foreach(
 results <- do.call(rbind, sim_results[[1]])
 if (Threshold == "Opp_Upper") {
   league_tables <- do.call(rbind, sim_results[[2]])
-  write_csv(league_tables, file = "league_tables.csv")
+  write_csv(league_tables, file = "./Results/league_tables.csv")
   }
 
 if (nrow(results) > nrow(na.omit(results))) results <- replace_empty(results)
 
-write_csv(results, file = paste0("sim_results_", Threshold, ".csv"))
+write_csv(results, file = paste0("./Results/sim_results_", Threshold, ".csv"))
 
 
 change <- results |>
@@ -172,8 +172,6 @@ change <- results |>
   )
 
 write_csv(change, file = paste0("targets_", Threshold, ".csv"))
-saveRDS(change, file = paste0("sim_results_", Threshold, ".rds"))
-
 mean(change$change_median)
 ```
 
