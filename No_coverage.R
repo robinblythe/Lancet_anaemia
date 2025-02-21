@@ -138,4 +138,5 @@ change <- results |>
   )
 
 write_csv(change, file = paste0("./Sensitivity_analysis/targets_", Threshold, ".csv"))
-mean(change$change_median)
+
+c("Mean" = mean(change$change_median), "Low" = mean(change$change_low), "High" = mean(change$change_high))
