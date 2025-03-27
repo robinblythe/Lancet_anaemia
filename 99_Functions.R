@@ -1,5 +1,6 @@
 # Functions to apply to GBD data
 # Populations argument can take "anaemic", "wra", and "total"
+# Purpose of function - just rolls up all the GBD data into easily accessible tibbles
 rollup <- function(population) {
   if (population == "anaemic") { # Anaemic women
     do.call(rbind, list(
@@ -71,6 +72,7 @@ rollup <- function(population) {
   }
 }
 
+# Replace triangular distribution function with uniform distribution in case the min/max and the mode overlap
 rtri_catch <- function(n, min, mode, max) {
   tryCatch(
     rtri(n, min, mode, max),
@@ -80,8 +82,8 @@ rtri_catch <- function(n, min, mode, max) {
   )
 }
 
+# Main simulation function to apply theta (see target setting Rmarkdown)
 # Population calls must be in quotes
-# Note that we can introduce population uncertainty here in the prevalence data, which is recycled over n.iter
 simulator <- function(prev_data, country, intervention) {
   # Filter datasets by country
   df_costs <- df_costs |> filter(location_name == country)
@@ -106,6 +108,7 @@ simulator <- function(prev_data, country, intervention) {
   coverage_max <- as.numeric(df_coverage[, grepl(paste0(intervention, "_max"), names(df_coverage))])
   coverage_current <- as.numeric(df_coverage[, grepl(paste0(intervention, "_current"), names(df_coverage))])
   
+  # Apply intervention and extract costs/effectiveness/cost-effectiveness
   df <- tibble(
     location_name = country,
     Intervention = intervention,
@@ -136,7 +139,7 @@ simulator <- function(prev_data, country, intervention) {
 }
 
 
-# Intervention applicator function
+# Intervention applicator function to obtain new prevalence of anaemia
 apply_intervention <- function(base_data, cea_table) {
   stage <- list()
 
@@ -147,6 +150,7 @@ apply_intervention <- function(base_data, cea_table) {
       coverage_max <- as.numeric(df_coverage[df_coverage$location_name == countrylist[i], grepl(paste0(int$Intervention, "_max"), names(df_coverage))])
       coverage_current <- as.numeric(df_coverage[df_coverage$location_name == countrylist[i], grepl(paste0(int$Intervention, "_current"), names(df_coverage))])
 
+      # Apply intervention to get a post-intervention prevalence estimate
       df_post <- base_data |>
         filter(location_name == countrylist[i]) |>
         mutate(
@@ -176,7 +180,7 @@ apply_intervention <- function(base_data, cea_table) {
               rei_name == "Severe anemia" ~ Pop_anaemic_n * YLD_severe
             )
         )
-    } else {
+    } else { # In case nothing can be applied, just return the dataframe
       df_post <- base_data |>
         filter(location_name == countrylist[i]) |>
         mutate(
@@ -194,6 +198,7 @@ apply_intervention <- function(base_data, cea_table) {
     stage[[i]] <- df_post
   }
 
+  # Combine results from for loop
   df_stage <- do.call(rbind, stage) |>
     select(-c(Pop_pregnant_anaemic, Pop_pregnant_malaria_anaemic, Pop_anaemic, YLD)) |>
     rename(
@@ -207,7 +212,7 @@ apply_intervention <- function(base_data, cea_table) {
 }
 
 
-# Replace empty simulation results
+# Replace empty simulation results with a single run
 replace_empty <- function(data) {
   # Determine how many sims to run for replacement
   n_replace <- length(unique(subset(data, is.na(Pct_change_anaemic))$Iteration))
@@ -258,14 +263,14 @@ replace_empty <- function(data) {
   # Identify failed iterations and remove them, then join updates to original dataframe
   failed <- unique(data$Iteration[is.na(data$Pct_change_anaemic)])
   df_updated <- data |>
-    filter(!(Iteration  %in% failed)) |>
+    filter(!(Iteration %in% failed)) |>
     rbind.data.frame(do.call(rbind, replacements))
   return(df_updated)
     
 }
 
 
-# Create output lists
+# Create output lists for parallel compute
 comb <- function(x, ...) {
   lapply(
     seq_along(x),

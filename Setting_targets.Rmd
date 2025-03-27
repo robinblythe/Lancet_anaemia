@@ -7,9 +7,9 @@ editor_options:
 This markdown file walks through the analysis for the target setting paper.  
 The paper will essentially show how target setting can be done using league tables of viable interventions, with a country's cost per YLD averted and WTP threshold set as the decision rule for implementing interventions sequentially. This will prioritise an intervention to be done first up to the maximum viable coverage, then remove it from the list and repeat the league table exercise until all cost-effective interventions are applied.
 
-This file takes the input data (prevalence, costs, and coverage) and repeatedly draws from these as distributions. It will repeat the simulation n times, with a different estimate for cost and effectiveness each time. This ensures that there isn't a 'fanning' effect where the low or high quantile is taken every time, leading to increasingly wider intervals as every intervention is done.
+This file takes the input data (prevalence, costs, and coverage) and repeatedly draws from these as distributions. It will repeat the simulation n times, with a different estimate for cost and effectiveness each time. This ensures that there isn't a fanning effect where variance is inflated unnecessarily.
 
-This should be submitted to IHEA 2025 and will form the basis of our recommendation for section 6 of the Lancet commission.
+### Set up simulation
 
 ```{r, warning = FALSE, message = FALSE}
 options(scipen = 999, digits = 5)
@@ -48,7 +48,7 @@ df_prevalence <- df_prevalence |>
 countrylist <- unique(df_prevalence$location_name)
 
 # Which WTP threshold to use?
-# NB: "Opp_Upper" corresponds to Pichon-Riviere opportunity cost method (base case)
+# NB: "Opp_Upper" corresponds to Pichon-Riviere opportunity cost method
 WTP_list <- c("Opp_Lower", "Opp_Upper", "HCFI_Lower", "HCFI_Upper", "Global", "Near_Infinite")
 Threshold <- WTP_list[6]
 
@@ -72,32 +72,31 @@ interventions <- c(
 )
 ```
 
-
-The basic structure of the league table idea is as follows:  
+The basic structure of the league table is as follows:  
 - Obtain the cost of each intervention per person and multiply by the increase in eligible population (e.g., pregnant women not currently receiving the intervention) 
 - Obtain the effectiveness (RR) of each intervention, enter that into the following formula with given current and maximum coverage:
 $$
 \theta = \frac{1 - c_{max}(1 - RR)}{1 - c_{current}(1 - RR)}
 $$
-- Now multiply theta by the target population (e.g. pregnant anaemic women) of each type of anaemia: mild, moderate, and severe, and obtain the YLD for each type
+### Basic structure:
+- Multiply theta by the target population (e.g. pregnant anaemic women) of each type of anaemia: mild, moderate, and severe, and obtain the YLD for each type
 - Divide costs by YLD and sort ascending
-- Pick the top option and then remove that intervention from the list  
-- Repeat
+- Pick the top option, implement it, then remove that intervention from the list  
+- Repeat until all interventions with ICER <= WTP threshold applied
 
-
-Set up parallel compute:
+### Set up parallel compute:
 
 ```{r}
 # Set number of iterations
 n <- 400
 
-# Prepare parallel computing
+# Prepare parallel computing - read up on this if you are unfamiliar with doparallel, it will slow down your machine for other tasks
 cores <- detectCores()
 cl <- makeCluster(cores - 2)
 registerDoParallel(cl)
 ```
 
-Run the simulations:
+Run the simulations for the given threshold:
 
 ```{r}
 # Repeat model n times
@@ -174,7 +173,3 @@ change <- results |>
 write_csv(change, file = paste0("targets_", Threshold, ".csv"))
 c("Mean" = mean(change$change_median), "Low" = mean(change$change_low), "High" = mean(change$change_high))
 ```
-
-The visualisation plan is for league tables by region, with regions as facets on the Y-axis (vertical), and cost/DALY on the X-axis (horizontal) with a dashed line for each facet denoting the regional WTP and a density plot for each distribution of cost/YLD by simulation.
-
-

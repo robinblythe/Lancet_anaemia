@@ -50,7 +50,6 @@ still <- vroom("./Data/Stillbirth-rate-and-deaths_2023.csv", show_col_types = FA
   suppressWarnings() |>
   suppressMessages()
 
-# Note - we have uncertainty estimates for stillbirth rates, but incorporating them within the simulation is messy. Currently omitted.
 pregnancy <- inner_join(fert, still) |>
   mutate(
     still = Median / 1000 * Fertility_Rate,
@@ -100,8 +99,7 @@ df_costs <- vroom("./Data/unit_costs.csv",
   filter(location_name %in% df_2030$location_name)
 
 
-
-# Ensuring costs != 0
+# Ensuring costs != 0 (no free lunch!)
 df_costs[df_costs == 0] <- 0.01
 
 # Coverage
@@ -121,10 +119,12 @@ df_coverage <- purrr::reduce(
   all = TRUE
 )
 
+# Some weird characters in the base data files. Convert to UTF-8
 Encoding(df_coverage$location_name) <- "UTF-8"
 df_coverage$location_name <- iconv(df_coverage$location_name, "UTF-8", "UTF-8", sub = "")
-df_coverage$location_name[df_coverage$location_name == "Curaao"] <- "Curacao"
+df_coverage$location_name[df_coverage$location_name == "Curaao"] <- "Curacao" # sorry Curacao, I can't get the Ç working
 
+# Fix country names in dataset
 df_coverage <- df_coverage |>
   mutate(location_name = countryname(location_name)) |>
   na.omit() |>
@@ -132,7 +132,7 @@ df_coverage <- df_coverage |>
 
 
 
-
+# save data for use in main analysis
 saveRDS(df_2030, file = "./Data/est_2030.rds")
 saveRDS(df_costs, file = "./Data/costs.rds")
 saveRDS(df_coverage, file = "./Data/coverage.rds")

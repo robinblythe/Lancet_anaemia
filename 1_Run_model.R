@@ -97,14 +97,13 @@ df_costs <- df_costs_base |>
   ) |>
   select(location_name, Iron_Preg, Iron_WRA, Antimalarial, Fortification)
 
-# Sample from coverage data per iteration using a 25% change
-# Need to jointly sample or otherwise current coverage may be larger than maximum possible coverage
+# Sample from coverage data per iteration using a 25% change in estimate
 perturb <- replicate(8, rnorm(nrow(df_coverage_base), 0, 0.127))
 df_coverage <- df_coverage_base[, c(2:9)] + df_coverage_base[, c(2:9)] * perturb
-df_coverage[df_coverage > 1] <- 1
-df_coverage[df_coverage < 0] <- 0
+df_coverage[df_coverage > 1] <- 1 # limit to 1. will cause a boundary effect
+df_coverage[df_coverage < 0] <- 0 # limit to 0. Will cause a boundary effect
 df_coverage <- df_coverage |>
-  mutate(
+  mutate( # ditto if current exceeds max - will cause a boundary effect
     Iron_WRA_current = ifelse(Iron_WRA_current > Iron_WRA_max, Iron_WRA_max, Iron_WRA_current),
     Iron_Preg_current = ifelse(Iron_Preg_current > Iron_Preg_max, Iron_Preg_max, Iron_Preg_current),
     Antimalarial_current = ifelse(Antimalarial_current > Antimalarial_max, Antimalarial_max, Antimalarial_current),

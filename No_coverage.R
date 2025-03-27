@@ -1,3 +1,5 @@
+# This file is a sensitivity analysis to assess the impact of coverage on the final results.
+
 options(scipen = 999, digits = 5)
 
 library(countrycode)
@@ -7,7 +9,7 @@ library(scales)
 library(foreach)
 library(doParallel)
 
-# Load helper functions
+# Load functions
 source("./99_Functions.R")
 
 # Read in 2030 population estimates, costs, and coverage
@@ -20,7 +22,7 @@ df_coverage_base[,c(3, 5, 7, 9)] <- 0
 df_costs_base$WTP_Global <- mean(df_costs_base$WTP_Opp_Upper)
 df_costs_base$WTP_Near_Infinite <- 10^10
 
-# Using 1 iteration per draw
+# Using 1 draw per sim
 iter <- 1
 
 # Filter by countries with data for all three input data frames
@@ -36,9 +38,12 @@ countrylist <- unique(df_prevalence$location_name)
 
 # Which WTP threshold to use?
 # NB: "Opp_Upper" corresponds to Pichon-Riviere opportunity cost method (base case)
+# HCFI_Lower pertains to the 1 x GDP per capita threshold
+# Near_Infinite is... nearly infinite. Applies all interventions except malaria treatment in non-malarial regions.
 WTP_list <- c("Opp_Upper", "HCFI_Lower", "Near_Infinite")
-Threshold <- WTP_list[3]
+Threshold <- WTP_list[1]
 
+# Apply WTP threshold
 WTP <- df_costs_base |>
   select(
     location_name,
@@ -48,7 +53,6 @@ WTP <- df_costs_base |>
     Country = location_name,
     WTP = paste0("WTP_", Threshold)
   )
-
 
 # List of interventions:
 interventions <- c(
@@ -74,18 +78,19 @@ sim_results <- foreach(
 ) %dopar% {
   tryCatch(source("1_Run_model.R", local = T))
   
+  # Compile results
   list(
-    df_final |>
+    df_final |> # Takes results after all interventions are applied
       rename(
         Pop_pregnant_anaemic_post = Pop_pregnant_anaemic,
         Pop_pregnant_malaria_anaemic_post = Pop_pregnant_malaria_anaemic,
         Pop_anaemic_post = Pop_anaemic,
         YLD_post = YLD
       ) |>
-      full_join(df_2030,
+      full_join(df_2030, # Merges with initial data (no interventions applied)
                 by = join_by(location_name, rei_name, Pop_wra, Pop_total, Pop_pregnant)
       ) |>
-      mutate(
+      mutate( # quantifies change between base case and post-intervention results
         Change_anaemic = Pop_anaemic_post - Pop_anaemic,
         Pct_change_anaemic = Change_anaemic / Pop_anaemic
       ) |>
@@ -98,7 +103,7 @@ sim_results <- foreach(
         YLD_pre = YLD
       ) |>
       group_by(Country) |>
-      summarise(
+      summarise( # Summarises changes across anaemia types
         anaemic_pre = sum(Pop_anaemic_pre),
         anaemic_post = sum(Pop_anaemic_post),
         YLD_pre = sum(YLD_pre),
@@ -110,22 +115,23 @@ sim_results <- foreach(
         Pct_change_YLD = (YLD_pre - YLD_post) / YLD_pre,
         Iteration = j
       ),
-    cea |>
+    cea |> # get league table results per simulation
       mutate(Iteration = j)
   )
 }
 
+# Compile results
 results <- do.call(rbind, sim_results[[1]])
-if (Threshold == "Opp_Upper") {
+if (Threshold == "Opp_Upper") { # retains league tables if using base case threshold
   league_tables <- do.call(rbind, sim_results[[2]])
   write_csv(league_tables, file = "./Sensitivity_analysis/league_tables.csv")
 }
 
-if (nrow(results) > nrow(na.omit(results))) results <- replace_empty(results)
+if (nrow(results) > nrow(na.omit(results))) results <- replace_empty(results) # replaces any empty sim results due to errors (shouldn't be any now)
 
 write_csv(results, file = paste0("./Sensitivity_analysis/sim_results_", Threshold, ".csv"))
 
-
+# Saves targets for easy access later as .csv files
 change <- results |>
   group_by(Country) |>
   summarise(
