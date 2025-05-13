@@ -50,7 +50,7 @@ countrylist <- unique(df_prevalence$location_name)
 # Which WTP threshold to use?
 # NB: "Opp_Upper" corresponds to Pichon-Riviere opportunity cost method
 WTP_list <- c("Opp_Lower", "Opp_Upper", "HCFI_Lower", "HCFI_Upper", "Global", "Near_Infinite")
-Threshold <- WTP_list[6]
+Threshold <- WTP_list[4]
 
 WTP <- df_costs_base |>
   select(
