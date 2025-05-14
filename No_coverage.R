@@ -41,7 +41,7 @@ countrylist <- unique(df_prevalence$location_name)
 # HCFI_Lower pertains to the 1 x GDP per capita threshold
 # Near_Infinite is... nearly infinite. Applies all interventions except malaria treatment in non-malarial regions.
 WTP_list <- c("Opp_Upper", "HCFI_Lower", "Near_Infinite")
-Threshold <- WTP_list[1]
+Threshold <- WTP_list[2]
 
 # Apply WTP threshold
 WTP <- df_costs_base |>
@@ -63,7 +63,7 @@ interventions <- c(
 )
 
 # Set number of iterations
-n <- 400
+n <- 1000
 
 # Prepare parallel computing
 cores <- detectCores()

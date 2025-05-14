@@ -50,7 +50,7 @@ countrylist <- unique(df_prevalence$location_name)
 # Which WTP threshold to use?
 # NB: "Opp_Upper" corresponds to Pichon-Riviere opportunity cost method
 WTP_list <- c("Opp_Lower", "Opp_Upper", "HCFI_Lower", "HCFI_Upper", "Global", "Near_Infinite")
-Threshold <- WTP_list[4]
+Threshold <- WTP_list[3]
 
 WTP <- df_costs_base |>
   select(
@@ -88,7 +88,7 @@ $$
 
 ```{r}
 # Set number of iterations
-n <- 400
+n <- 1000
 
 # Prepare parallel computing - read up on this if you are unfamiliar with doparallel, it will slow down your machine for other tasks
 cores <- detectCores()
